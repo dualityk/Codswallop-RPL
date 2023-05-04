@@ -1,0 +1,69 @@
+(Object system.)
+
+(Automate a closure by dereferencing all unquoted symbols of the form [sym],
+ at least if that bracketed symbol is currently available.)
+::
+  SWAP DUP LEN #0
+  (Mogrify: extract a symbol and return either it or the dereferenced version of it.)
+  :: >STR DUP LEN
+    :: (First, could it possibly be a bracketed symbol?)
+      original >OBJ length #2 >
+      :: (It could be, but is it?) 
+        original #1 RIGHT "]" ==
+        original #0 GET "[" == AND
+        :: (It is, but is it valid?)
+          original #1 length #2 - SUBS >OBJ DUP EXISTS
+          :: SWAP DROP DEREF ;
+          'DROP'
+          IFTE ;
+        IFT ; 
+      IFT ;
+    { length original } LOCAL ;
+
+  :: idx length <
+    :: 'list' RCL DUP idx GET DUP TYPE (List, list item, item type.)
+      DUP Types.List == SWAP Types.Code == OR (If it's a composite type, recurse.)
+      :: exceptions CLOSE idx PUT 'list' STO ;
+      :: DUP TYPE Types.Function == (If it's an unquoted symbol...)
+        :: DUP exceptions SWAP >STR HAS NOT 
+          (Make sure it's not an exception.)
+          :: mogrify idx PUT 'list' STO ;
+          :: DROP DROP ;
+          IFTE ;
+        :: DROP DROP ;
+        IFTE ;
+      IFTE idx #1 + 'idx' STO loop ;
+    :: 'list' RCL ; (If there aren't any more things, return the list.)
+    IFTE ;
+  DUP { loop mogrify idx length list exceptions } LOCAL ;
+DUP 'CLOSE' STO {} STATIC 'CLOSE' STO
+{ { CLOSE `Types.List `Types.List } { CLOSE `Types.Code `Types.List } }
+#2
+"Prepare a closure by dereferencing all unquoted symbols of the form [sym], except those in the exception list."
+'CLOSE'
+>BIN 'CLOSE' STO
+
+
+(Build an instance of a class, which takes the form:
+ "instance name"
+ { { :: method ; "method name" }
+   { ... } })
+
+{ { 
+:: (First close up all the methods.)
+  {} CLOSE #0
+  { { :: instance "." + SWAP + >OBJ STO ; #11 #3 } }
+  #2 "" 'MKINST' >BIN  
+  :: (Store something in our instance name.)
+    #0 'self' >DIR instance >OBJ STO
+    :: (Now, for each method, make a dotted instance name and store it.)
+      idx methods LEN < DUP
+      :: methods idx GET OBJ> DROP storemethod ;
+      IFT idx #1 + 'idx' STO ;
+    REP
+    ;
+  { storemethod idx methods instance } LOCAL ;
+`Types.String `Types.List } } {} STATIC
+#2 (Two arguments)
+"Create and store a new instance of a class, from a string instance name and a list of the form { { :: method ; ''method-name'' } ... }."
+'MKINST' >BIN 'MKINST' STO

@@ -1,0 +1,8 @@
+(This is a list of files loaded by boot.rpl on startup.  The base directory
+ and extension are automatically added. )
+{ "builtins"	(All our safe-to-use types, which should be loaded first.)
+  "rpl" 	(The standard library and REPL.)
+  "cobs" 	(Codswallop Objects, an OOP implementation.)
+  "colors" 	(Beauteous type highlighting.) 
+  "colorruntime"(Nicer single stepper and error handler.)
+  ("dirtest")	(Directory testing.) }

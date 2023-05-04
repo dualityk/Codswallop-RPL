@@ -1,0 +1,183 @@
+(This is the standard library, containing the most useful routines not
+ implemented in the interpreter itself, including the REPL.)
+
+(Original REP command)
+(::
+  :: _body '_rep' IFT ;
+  :: _rep ; 
+  { _rep _body } LOCAL ; 
+{ _rep _body } STATIC 
+'oldREP' STO)
+
+:: (HAS: See if a value exists in a list)
+  SWAP DUP LEN #0 (Grab its length, and set our index.)
+  :: idx length <
+    :: 'list' RCL idx GET 'term' RCL ==
+      #1
+      :: idx #1 + 'idx' STO loop ;
+      IFTE ;
+    #0 
+    IFTE ; 
+  DUP { loop idx length list term } LOCAL ;
+'HAS' STO
+
+:: (STATIC: Dereference all builtins from a list, except those in the
+exception table.)
+  SWAP DUP LEN #0
+  :: idx length <
+    :: 'list' RCL DUP idx GET DUP TYPE (List, list item, item type.)
+      DUP Types.List == SWAP Types.Code == OR (If it's a composite type, recurse.)
+      :: exceptions STATIC idx PUT 'list' STO ;
+      :: DUP SWAP TYPE Types.Function == (If it's an unquoted symbol...)
+        :: DUP DUP exceptions SWAP >STR HAS NOT 
+           (Make sure it's not an exception.)
+           SWAP EXISTS AND (And that it's real.)
+          :: RCL DUP TYPE DUP Types.Builtin == SWAP Types.Internal == OR
+            (Pull it, is it a built-in or an internal?)
+            :: idx PUT 'list' STO ; (Yes, so store the thing itself.)
+            :: DROP DROP ; (No, clear the stack.)
+            IFTE ;
+          :: DROP DROP ; (No, clear the stack.)
+          IFTE ;
+        :: DROP DROP ; (No, clear the stack.)
+        IFTE ;
+      IFTE idx #1 + 'idx' STO loop ;
+    :: 'list' RCL ; (If there aren't any more things, return the list.)
+    IFTE ;
+  DUP { loop idx length list exceptions } LOCAL ;
+DUP 'STATIC' STO {} STATIC 'STATIC' STO (Bootstrap our static STATIC.)
+
+'HAS' RCL {} STATIC 'HAS' STO (And our static HAS.)
+
+(Now, turn STATIC into a real boy.)
+{ { STATIC `Types.List `Types.List } { STATIC `Types.Code `Types.List } }
+#2 "Except for the symbols in the list on line 1, dereference all builtins in the program on line 2."
+'STATIC' >BIN 'STATIC' STO
+
+(And do the same with HAS.)
+{ { HAS `Types.List `Types.Any } }
+#2 "Check to see if a list on line 2 contains something like the item on line 1."
+'HAS' >BIN 'HAS' STO
+
+(REP using code modification.
+This version just appends recursion, duplicates the whole program
+to store itself in its own local variable, and goes to town.)
+{ { :: 
+      :: '_rep' IFT ; + DUP 
+      { _rep } LOCAL ; `Types.Code } }
+{} STATIC
+#1 "Repeatedly evaluate a code object until it returns 0."
+'REP' >BIN 'REP' STO
+
+(CASE.  Takes a list in the form of:
+ { { if-case then-case }
+   { if-case then-case }
+   ... } )
+{ (case goes here) `Types.List }
+::
+  #1 (_keeptry)
+  #0 (_index)
+  ::
+    _cases LEN (Don't even try if there's no cases to check.)
+    ::
+      :: (Open our case, evaluate the if block.)
+        _cases _index GET #0 GET EVAL 
+        (Keep track of the result for ourselves; if needed, fetch then block.) 
+        DUP NOT '_keeptry' STO 
+        :: _cases _index GET #1 GET ; IFT
+        (Now increment our index and see if it's time to repeat.)
+        _index #1 + DUP '_index' STO
+        _cases LEN < _keeptry AND ;
+      REP
+      (If we fetched a then block, evaluate it here as a tail call.)
+      _keeptry NOT 'EVAL' IFT ;
+    IFT ;
+  { _index _keeptry _cases }
+  LOCAL ;
+{} STATIC #0 PUT #1 >LST
+#1 "Takes a case list in the form of { { if-case then-case } ... } and evaluates only the first match."
+'CASE' >BIN
+'CASE' STO
+
+(KCASE: supply a constant for each case.  Takes two arguments:
+ the test value and the CASE style list.)
+{ (kcase goes here) `Types.Any `Types.List }
+::
+  #1 (_keeptry)
+  #0 (_index)
+  ::
+    _cases LEN (Don't even try if there's no cases to check.)
+    ::
+      :: (Open our case, recall our constant, and evaluate the if block.)
+        _k _cases _index GET #0 GET EVAL 
+        (Keep track of the result for ourselves; if needed, fetch then block.) 
+        DUP NOT '_keeptry' STO 
+        :: _cases _index GET #1 GET ; IFT
+        (Now increment our index and see if it's time to repeat.)
+        _index #1 + DUP '_index' STO
+        _cases LEN < _keeptry AND ;
+      REP
+      (If we fetched a then block, evaluate it here as a tail call.)
+      _keeptry NOT 'EVAL' IFT ;
+    IFT ;
+  { _index _keeptry _cases _k }
+  LOCAL ;
+{} STATIC
+{} STATIC #0 PUT #1 >LST
+#2 "Modified CASE which takes two arguments, a test value and a CASE list.  Supplies the constant for each if-case."
+'KCASE' >BIN
+'KCASE' STO
+
+:: (PROFILE: Figure evaluation time for an object.)
+  EPOCH :: EVAL EPOCH _profiletime - ; 
+  { _profiletime } LOCAL ;
+{} STATIC
+'PROFILE' STO
+
+:: (PAUSE: Press enter to continue.)
+  "(Enter) " PROMPT DROP ;
+'PAUSE' STO
+
+(Interactive loop...)
+::
+  (Clear errors and prompt for text.)
+  UNDED #1 DEDCONT
+  (This loop lets multiple lines be entered, with some helpful prompts.)
+  "" (our string)
+  #0 (line counter)
+  ::
+    ::
+      cont DUP #1 + 'cont' STO  (Increment our line counter)
+      "..?  " ":: " IFTE PROMPT  (Make a prompt based upon it)
+      ISDED
+      :: DROP DROP #0 ; (Error case)
+      :: DUP #1 RIGHT "\\" ==
+        (Strip backslash if one exists, add newline and ask for more.)
+        :: DUP LEN #1 - LEFT + #10 >ASC + #1 ;
+        (Otherwise, add this line to our thing and stop repeating.)
+        :: + #0 ;
+        IFTE ;
+      IFTE ;
+    REP ;
+  { cont }
+  LOCAL
+  (Now, see if we got through it without ctrl-c.)
+  ISDED
+  :: (Yes we're dead: bail.) 
+    DROP "" DISP "See you space cowboy..." DISP BAIL ; 
+  :: (No, let's try to parse what we got.)
+    " ;" + ":: " SWAP + >OBJ ISDED 
+    :: (If it didn't work out, drop the leftovers and loop.) 
+      DROP ;
+    :: (If it did work, turn errors back on and evaluate what we got.)
+      #0 DEDCONT EVAL ;
+    IFTE ;
+  IFTE 
+  SSTOFF (Don't let SST step through the REPL.)
+  (Now print our stack.  If some fancypants color is available, we'll use it.)
+  "" DISP
+  'COLOR.STACK' EXISTS 'COLOR.STACK' 
+  :: STACK "Stack: " SWAP + DISP ; IFTE
+  REPL ;
+{} STATIC
+'REPL' STO

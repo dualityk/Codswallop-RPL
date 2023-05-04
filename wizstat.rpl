@@ -1,0 +1,1051 @@
+::
+( *****************************************************
+  *                                                   *
+  * WIZARD'S CASTLE GAME FROM JULY/AUGUST 1980        *
+  * ISSUE OF RECREATIONAL COMPUTING MAGAZINE          *
+  * WRITTEN FOR EXIDY SORCERER BY JOSEPH R. POWER     *
+  * MODIFIED FOR HEATH MICROSOFT BASIC BY J.F.STETSON *
+  * And rewritten in RPL by Rev. Dr. D. K. Codswallop *
+  * -- along with rpl.py -- just for shits in 2021    *
+  *                                                   *
+  ***************************************************** )
+
+(reload from disk, for speedier debugging)
+:: "wiz.rpl" DSK> ; 'reload' STO
+
+(map cheat)
+#0 'cheating' STO
+
+(1020 Common functions and array dimensioning. )
+  
+(fna returns a random integer between 1 and n.)
+(:: :: #1 RND q * >INT + ; { q } LOCAL ; 'fna' STO) (original formula)
+:: RND * >INT #1 + ; 'fna' STO (slight rearrangement)
+(fnb wraps values for traveling past map boundaries.)
+:: :: q #8 q #0 == q #9 == - * + ; { q } LOCAL ; 'fnb' STO
+(fnc prevents stats from exceeding 18.)
+:: :: q q #19 < * #18 q #18 > * + ; { q } LOCAL ; 'fnc' STO
+(fnd returns a 1d array subscript from the 3d coordinates.
+ This differs from the original which was option base 1.)
+:: #1 - #64 * #8 x #1 - * + y #1 - + ; 'fnd' STO
+(fne returns an uncovered space number from covered or uncovered spaces.)
+:: :: q #100 q #99 > * - ; { q } LOCAL ; 'fne' STO
+
+"** Please answer yes or no" 'Ys' STO
+#0 'ng' STO
+#0 'q3' STO (Not initialized in original, could cause crash on quit)
+
+(line 1240 initialize arrays and show text)
+:: ng #1 + 'ng' STO
+  (Cs is a list of all the possible rooms in the game.)
+  { "an empty room" "the entrance" "stairs going up" "stairs going down"
+    "a pool" "a chest" "gold pieces" "flares" "a warp" "a sinkhole" 
+    "a crystal orb" "a book" "a kobold" "an orc" "a wolf" "a goblin" "an ogre"
+    "a troll" "a bear" "a minotaur" "a gargoyle" "a chimera" "a balrog"
+    "a dragon" "a vendor" "The Ruby Red" "The Norn Stone" "The Pale Pearl"
+    "The Opal Eye" "The Green Gem" "The Blue Flame" "The Palantir"
+    "The Silmaril" "x" } 'Cs' STO
+  (Is is their map representation.)
+  { "." "E" "U" "d" "P" "C" "G" "F" "W" "S" "O" "B" "M" "M" "M" "M" "M" 
+    "M" "M" "M" "M" "M" "M" "M" "V" "T" "T" "T" "T" "T" "T" "T" "T" "?"} 'Is' STO
+  (l is the level map.)
+  { #100 } #512  * 'l' STO
+  (Ws is weapons.)
+  { "no weapon" "dagger" "mace" "sword" "no armor" "leather" "chainmail"
+    "plate" } 'Ws' STO 
+  (Es is eats.)
+  { " sandwich" " stew" " soup" " burger" 
+    " roast" " filet" " taco" " pie" } 'Es' STO 
+  (Rs is races.)
+  { "hobbit" "elf" "man" "dwarf" } 'Rs' STO
+  (If this is our first time through, tell the story.)
+  ng 1 ==
+  :: l9770 " " #16 * "* * * THE WIZARD'S CASTLE * * *" + DISP "" DISP l9770
+    "MANY CYCLES AGO, IN THE KINGDOM OF N'DIC, THE GNOMIC
+WIZARD ZOT FORGED HIS GREAT *ORB OF POWER*. HE SOON
+VANISHED, LEAVING BEHIND HIS VAST SUBTERRANEAN CASTLE
+FILLED WITH ESURIENT MONSTERS, FABULOUS TREASURES, AND
+THE INCREDIBLE *ORB OF ZOT*. FROM THAT TIME HENCE, MANY
+A BOLD YOUTH HAS VENTURED INTO THE WIZARD'S CASTLE. AS
+OF NOW, *NONE* HAS EVER EMERGED VICTORIOUSLY! BEWARE!!
+" DISP ;
+  IFT
+  (Now we populate the dungeon.)
+  (Entrance at 1, 4, 1.)
+  #1 'x' STO #4 'y' STO #1 'z' STO
+  l #1 #1 fnd PUT 'l' STO
+
+  (Drop some matching staircases on every floor.)
+  #103 'q' STO
+  (Code-is-data jiujitsu: multiplying and adding to code before evaluation.) 
+  :: l9590 l #102 z #1 + fnd PUT 'l' STO ; #2 * 
+  :: z #1 + DUP 'z' STO #7 <= ; + REP
+  (Drop an assortment of chaff onto each floor.)
+  #1 'z' STO
+  :: #112 'q' STO :: l9590 q #1 + DUP 'q' STO #123 <= ; REP
+    (Three each of all this stuff.)
+    :: #104 'q' STO :: l9590 q #1 + DUP 'q' STO #111 <= ; REP
+      #124 'q' STO l9590 ; #3 * EVAL
+    z #1 + DUP 'z' STO #8 <= ; REP
+  (Treasures distributed fully randomly.)
+  #125 'q' STO :: #8 fna 'z' STO l9590 q #1 + DUP 'q' STO #132 <= ; REP
+  (Three hidden curses dropped on empty squares.)
+  #100 'q' STO ( XXX dup disp after >lst here shows curse locations)
+  :: #8 fna 'z' STO l9590 x y z #0 #4 >LST ; #3 * EVAL #3 >LST 'cA' STO
+  (Reset some basic stats.)
+  #0 'rc' STO #2 'st' STO #14 'dx' STO
+  Rs "man" #2 PUT 'Rs' STO
+  (Some random enemy will be carrying the runestaff.)
+  #111 #12 fna + 'q' STO
+  #8 fna 'z' STO l9590
+  x y z #3 >LST 'r' STO
+  (Some warp will be *** THE ORB OF ZOT ***.)
+  #108 'q' STO
+  #8 fna 'z' STO l9590
+  x y z #3 >LST 'o' STO
+  (A bunch more stats.)
+  #0 'bf' STO #8 'ot' STO #0  'av' STO #0 'ht' STO #1 't'  STO #0 'vf' STO 
+  #0 'lf' STO #0 'tc' STO #60 'gp' STO #0 'rf' STO #0 'of' STO #0 'bl' STO 
+  #8 'iq' STO #0 'sx' STO #0  'h' STO (h not originally initialized)
+  (Clear out our treasure inventory.)
+  { #0 } #8 * 'tA' STO
+  "All right, bold one." DISP
+  :: "You may be an elf, dwarf, man, or hobbit." DISP
+    l9830
+    #1 'q' STO
+    :: Rs q #1 - GET #0 GET Os ==  (If the first character of race matches input)
+      :: q 'rc' STO (Set race)
+         st #2 q * + 'st' STO (Set strength as function of race)
+         dx #2 q * - 'dx' STO (Set dexterity as function of race) ; IFT
+         q #1 + DUP 'q' STO #4 <= ; REP (loop 4 times)
+    "" DISP
+    ot #4 rc #1 == NEG * + 'ot' STO (hobbits get shit for points)
+    rc NOT :: "** That was incorrect. Please type e, d, m, or h." DISP ; IFT
+    rc NOT ; REP  (Repeat this section til the user gets it right.)
+    rc #1 - 'rc' STO (Correct for option base 1.)
+  Rs "human" #2 PUT 'Rs' STO (Change 'man' back to 'human'.)
+
+  :: "Which sex do you prefer? " l9850 (Prompt for gender.)
+    #1
+    Os "m" == :: #1 'sx' STO DROP #0 ; IFT
+    Os "f" == :: DROP #0 ; IFT
+    DUP :: "** Cute, " Rs rc GET + ", real cute. Try m or f." + DISP ; IFT ;
+    REP
+  "" DISP
+  "Ok, " Rs rc GET + ", you have the following attributes:" + DISP
+  "Strength = " st + "  Intelligence = " + iq + "  Dexterity = " + dx + DISP
+  "and " ot + " other points to allocate as you wish." + DISP
+  "" DISP
+
+  (Add points to our stats, and if we run out of points, make sure to stop
+  asking.)
+  "strength" 'Zs' STO l9880 st q + 'st' STO
+  ot :: "intelligence" 'Zs' STO l9880 iq q + 'iq' STO ; IFT 
+  ot :: "dexterity" 'Zs' STO l9880 dx q + 'dx' STO ; IFT
+  
+  (Equip player armor.)
+  "Ok, " Rs rc GET + ", you have " + gp + " gold pieces (GP's)." + DISP
+  :: "armor" 'Zs' STO l10130
+    #0 'av' STO #0 'wv' STO #0 'fl' STO #0 'wc' STO
+    "Plate<30> Chainmail<20> Leather<10> Nothing<0>" DISP
+    l9830
+    #3 Os "p" == *
+    #2 Os "c" == * +
+       Os "l" == + 'av' STO
+    Os "n" == av OR NOT DUP (did we get a valid answer?)
+    :: "** Are you a " Rs rc GET + " or " +
+       Cs #12 fna #11 + GET + "?" + DISP ; IFT ;
+  REP
+  av #7 * 'ah' STO  gp av #10 * - 'gp' STO
+
+  (Equip weapon.)
+  "" DISP
+  "Ok, bold " Rs rc GET + ", you have " + gp + " GP's left." + DISP
+  :: "weapons" 'Zs' STO l10130
+    "Sword<30> Mace<20> Dagger<10> Nothing<0>" DISP 
+    l9830
+    #3 Os "s" == *
+    #2 Os "m" == * +
+       Os "d" == + 'wv' STO
+    Os "n" == wv OR NOT DUP (did we get a valid answer?)
+    :: "** Is your IQ really " iq + "?" + DISP ; IFT ;
+  REP
+  gp wv #10 * - 'gp' STO
+  
+  (Ask about a lamp.)
+  gp #20 >=
+  :: :: "Do you want to buy a lamp for 20 GP's? " l9850
+    #1
+    Os "y" == :: #1 'lf' STO gp #20 - 'gp' STO DROP #0 ; IFT
+    Os "n" == :: DROP #0 ; IFT
+    DUP
+    :: "" DISP Ys DISP "" DISP ; IFT ; REP ; IFT
+
+  (Ask about flares.)
+  "" DISP
+  gp #1 >= (At least, if we have any money.)
+  ::"Ok, " Rs rc GET + ", you have " + gp + " gold pieces left." + DISP
+    "" DISP
+    :: "Flares cost 1 GP each. How many do you want? " PROMPT 'Os' STO
+      Os VAL >INT 'q' STO
+      "" DISP
+      q #0 > Os LEN :: Os ASC> #48 == ; #0 IFTE OR
+      (If we got a valid answer, check to see if we have funds.)
+      :: q gp >
+        :: "** You can only afford " gp + "." + DISP #1 ;
+        :: fl q + 'fl' STO gp q - 'gp' STO #0 ; IFTE ;
+      (Otherwise chastise the user.)
+      :: "** If you don't want any, just type 0 (zero)." DISP #1 ; IFTE ;
+  REP ; IFT
+    
+  #1 'x' STO #4 'y' STO #1 'z' STO
+  "Ok, " Rs rc GET + ", you are now entering the castle!" + DISP
+; 'l1240' STO
+
+
+(2920 Main processing loop.)
+::
+  ::
+    t #1 + 't' STO	(Increment turn count.)
+    rf of OR NOT		(Curses don't affect winners.)
+    :: cA #0 GET #3 GET tA #0 GET >  (Sloth curse, Ruby Red nullifies.)
+      :: t #1 + 't' STO ; IFT 
+      cA #1 GET #3 GET tA #2 GET >  (Money curse, Pale Pearl nullifies.)    
+      :: gp #5 fna - DUP #0 < :: DROP #0 ; IFT 'gp' STO ; IFT
+      cA #2 GET #3 GET tA #4 GET >  (Forgetfulness, Green Gem nullifies.)
+      :: x 'a' STO y 'b' STO z 'c' STO
+        #8 fna 'x' STO #8 fna 'y' STO #8 fna 'z' STO
+        l DUP z fnd GET #100 + z fnd PUT 'l' STO
+        a 'x' STO b 'y' STO c 'z' STO ; 
+      IFT
+      l z fnd GET #0 ==  (If we're on an empty space, check for curse traps.)
+      :: #0 'q' STO
+        :: cA DUP q GET DUP OBJ> DROP DROP  (Drop curse location on stack.)
+          z == SWAP y == * SWAP x == * 
+          DUP :: "A disembodied voice whispers, 'Currrrrsssseedddd...'" DISP ; IFT ( XXX show curses )
+          #3 PUT q PUT 'cA' STO 
+          q #1 + DUP 'q' STO #3 < ; 
+        REP ; 
+      IFT ;
+    IFT
+
+    #5 fna #1 ==  (If 1d5 comes up 1, atmosphere takes place.)
+    :: "" DISP "You "
+      { "see a bat fly by!"
+        :: "hear "
+          { "a scream!" "footsteps!" "a wumpus!" "thunder!" }
+          #4 fna #1 - GET + ;
+        "sneezed!"
+        "stepped on a frog!"
+        :: "smell " Cs #11 #13 fna + GET + " frying!" + ;
+        "feel like you're being watched!"
+        "hear faint rustling noises!" }
+      #7 fna bl +	(Roll 1d7 to see what happens, account for blindness.)
+      DUP #7 > :: DROP #3 ; :: #1 - ; IFTE GET EVAL + DISP ;
+    IFT   
+
+    (See if any treasures will cure our ills.)
+    tA #3 GET bl + #2 ==
+    :: "" DISP
+      Cs #28 GET " cures your blindness!" + DISP
+      #0 'bl' STO ;
+    IFT
+    tA #5 GET bf + #2 ==
+    :: "" DISP
+      Cs #30 GET " dissolves the book!" + DISP
+      #0 'bf' STO ;
+    IFT
+
+    (Get and process user input.)
+    "" DISP "Enter your command : " PROMPT  
+    DUP LEN NOT :: DROP " " ; IFT 'Os' STO  (Empty strings turned into one space.)
+    (Case block is similar to l5920's.)
+    Os #0 #1 SUBS "dr" ==  (Are we drinkin'?)
+    :: l4760 #0 ;
+    :: Os #0 GET 'Os' STO #1 ; IFTE (If not, truncate to one letter.)
+    :: Os "n" == :: l3890 #0 ; #1 IFTE ; #0 IFTE
+    :: Os "s" == Os "w" == OR Os "e" == OR 
+      :: l3900 #0 ; #1 IFTE ; #0 IFTE
+    :: Os "u" == :: l3950 #0 ; #1 IFTE ; #0 IFTE
+    :: Os "d" == :: l3980 #0 ; #1 IFTE ; #0 IFTE
+    :: Os "m" == :: l4030 #0 ; #1 IFTE ; #0 IFTE
+    :: Os "f" == :: bl 'l4030' 'l4260' IFTE #0 ; #1 IFTE ; #0 IFTE
+    :: Os "l" == :: bl 'l4030' 'l4520' IFTE #0 ; #1 IFTE ; #0 IFTE
+    :: Os "o" == :: l4950 #0 ; #1 IFTE ; #0 IFTE
+    :: Os "g" == :: bl 'l4030' 'l5390' IFTE #0 ; #1 IFTE ; #0 IFTE
+    :: Os "t" == :: l5650 #0 ; #1 IFTE ; #0 IFTE
+    :: Os "h" == :: helpscreen #0 ; #1 IFTE ; #0 IFTE
+    :: Os "q" == :: l5800 #0 ; #1 IFTE ; #0 IFTE
+    :: Os "!" == :: #1 'cheating' STO #0 ; #1 IFTE ; #0 IFTE  (Cheat mode)
+    :: "" DISP
+      "** Silly " Rs rc GET + ", that wasn't a valid command!" + DISP ;
+    IFT
+  (Check for death.)
+  st iq AND dx AND NOT 'l8840' IFT
+  (This loop never ends.  Death/quit routine restocks castle as necessary.)
+  #1 ; REP
+;
+'l2920' STO
+
+(3590 or so, help screen.)
+:: #27 >ASC "E" + DISP
+  "*** WIZARD'S CASTLE COMMAND AND INFORMATION SUMMARY ***
+THE FOLLOWING COMMANDS ARE AVAILABLE :
+
+H/ELP     N/ORTH    S/OUTH    E/AST     W/EST     U/P
+D/OWN     DR/INK    M/AP      F/LARE    L/AMP     O/PEN
+G/AZE     T/ELEPORT Q/UIT
+
+THE CONTENTS OF ROOMS ARE AS FOLLOWS :
+
+. = EMPTY ROOM      B = BOOK            C = CHEST
+D = STAIRS DOWN     E = ENTRANCE/EXIT   F = FLARES
+G = GOLD PIECES     M = MONSTER         O = CRYSTAL ORB
+P = MAGIC POOL      S = SINKHOLE        T = TREASURE
+U = STAIRS UP       V = VENDOR          W = WARP/ORB
+
+THE BENEFITS OF HAVING TREASURES ARE :
+
+RUBY RED - AVOID LETHARGY     PALE PEARL - AVOID LEECH
+GREEN GEM - AVOID FORGETTING  OPAL EYE - CURES BLINDNESS
+BLUE FLAME - DISSOLVES BOOKS  NORN STONE - NO BENEFIT
+PALANTIR - NO BENEFIT         SILMARIL - NO BENEFIT
+
+Press return when ready to resume, " Rs rc GET + "." + DISP
+  "" PROMPT ;
+'helpscreen' STO
+
+(3890 Travel north, check for exit.)
+:: l z fnd GET #1 ==
+  'l8960'
+  'l3900' IFTE ;
+'l3890' STO
+
+(3900 Travel any cardinal direction.)
+:: x Os "n" == - Os "s" == + fnb 'x' STO
+   y Os "w" == - Os "e" == + fnb 'y' STO 
+   l5920 ;
+'l3900' STO
+
+(3950, 3980, 4000 Travel up and down.)
+:: l z fnd GET #2 ==
+  :: z #1 - 'z' STO l5920 ;
+  :: "up" l4000 ;
+  IFTE ;
+'l3950' STO
+:: l z fnd GET #3 ==
+  :: z #1 + 'z' STO l5920 ;
+  :: "down" l4000 ;
+  IFTE ;
+'l3980' STO
+:: "" DISP 
+  "** There are no stairs going " SWAP + " from here!" + DISP ;
+'l4000' STO
+
+(4030 Display map of current castle level.)
+:: 
+  bl  (Grouse if blind, otherwise show map.)
+  :: "" DISP
+    "** You can't see anything, you dumb " Rs rc GET + "!" + DISP ;
+  :: x 'a' STO y 'b' STO 
+    #1 'x' STO
+    :: #1 'y' STO "" 
+      :: Is l z fnd GET DUP #99 > 
+        (If the space is hidden and we're cheating, display it, otherwise blank.)
+        :: cheating
+          :: #100 - ; 
+          :: DROP #33 ; 
+          IFTE ; 
+         IFT
+         x a == y b == AND
+         :: GET "<" SWAP + ">" + ;
+         :: GET " " SWAP + " " + ;
+         IFTE +
+         y #1 + DUP 'y' STO #8 <= ; REP DISP
+      x #1 + DUP 'x' STO #8 <= ; REP 
+    a 'x' STO b 'y' STO ;
+  IFTE ;
+'l4030' STO
+
+(4260 Fire off a flare.)
+:: fl  (Do we even have any flares?)
+  :: 
+    fl #1 - 'fl' STO  (One less flare.)
+    x 'a' STO y 'b' STO  (Back up our position.)
+    a #1 - 'q1' STO
+    :: q1 fnb 'x' STO (Normalize x.)
+      b #1 - 'q2' STO ""
+      :: q2 fnb 'y' STO (Normalize y.)
+        (Fetch our square, unhide it, store it back, and put it in q too.)
+        l DUP z fnd GET fne DUP 'q' STO z fnd PUT 'l' STO
+        " " + Is q GET + "  " +
+        q2 #1 + DUP 'q2' STO b #1 + <= ; REP
+      DISP "" DISP
+      q1 #1 + DUP 'q1' STO a #1 + <= ; 
+    REP 
+    a 'x' STO b 'y' STO 
+    l10160 ;
+  :: "** Hey, bright one, you're out of flares!" DISP ;
+  IFTE ;
+'l4260' STO
+
+(4520 Peek about with a lamp.)
+:: lf  (Is there a lamp to peek about with?)
+  :: "" DISP
+    "Where do you want to shine the lamp (n,s,e,w)? " l9850 
+    x 'a' STO y 'b' STO 
+    x Os "n" == - Os "s" == + fnb 'x' STO
+    y Os "w" == - Os "e" == + fnb 'y' STO
+    a x - b + y -  (Did that actually move us?)
+    "" DISP
+    :: "The lamp shines into (" x + ", " + y + ") level " 
+      + z + "." + DISP "" DISP
+      l DUP z fnd GET fne DUP  (Fetch the square and unhide...)
+      Cs SWAP GET "There you will find " SWAP + "." + DISP
+      z fnd PUT 'l' STO  (And put it back.) 
+      a 'x' STO b 'y' STO  (And put ourselves back.) ;
+    :: "** That's not a direction, " Rs rc GET + "!" + DISP ;
+    IFTE
+  ;
+  :: "** You don't have a lamp, " Rs rc GET + "!" + DISP ;
+  IFTE ;
+'l4520' STO
+
+(4760 Take a drink from a pool.)
+:: l z fnd GET #4 ==  (Are we at a pool?)
+  :: 
+    "" DISP "You take a drink and "
+    #8 fna #1 - 'q' STO (Roll for what we get.)
+    q #6 < :: "feel " + ; IFT
+    { :: st #3 fna + fnc 'st' STO "stronger." ;
+      :: st #3 fna - 'st' STO "weaker." ;
+      :: iq #3 fna + fnc 'iq' STO "smarter." ;
+      :: iq #3 fna - 'iq' STO "dumber." ;
+      :: dx #3 fna + fnc 'dx' STO "nimbler." ;
+      :: dx #3 fna - 'dx' STO "clumsier." ;
+      :: :: #4 fna #1 - DUP 'q' STO rc == ; REP
+        q 'rc' STO "become a " + Rs rc GET + "." ;
+      :: #1 sx - 'sx' STO "turn into a " +
+        sx NOT :: "fe" + ; IFT "male!" ; }
+    q GET EVAL
+    + DISP
+    (Did we die?)
+    st #1 < iq #1 < OR dx #1 < OR 'l8840' IFT
+  ;
+  :: "** If you want a drink, find a pool!" DISP ;
+  IFTE
+;
+'l4760' STO
+
+(4950 Open action.)
+:: "" DISP
+  l z fnd GET DUP 
+  DUP #5 == SWAP #11 == OR
+  :: 
+    #5 ==
+    :: "You open the chest and " l5250 ;
+    :: "You open the book and " l5060 ;
+    IFTE ;
+  :: "** The only thing that opened was your big mouth!" DISP ;
+  IFTE
+;
+'l4950' STO
+
+(5060 Open a book.)
+:: l5230 (Empty the square.)
+  { :: "FLASH! Oh no! You are now a blind " Rs rc GET + "!" +
+      #1 'bl' STO ;
+    "it's another volume of Zot's poetry! - Yech!"
+    :: "it's an old copy of Play" Rs #4 fna #1 - GET + "!" + ;
+    :: "it's a manual of dexterity!" #18 'dx' STO ;
+    :: "it's a manual of strength!" #18 'st' STO ;
+    :: "the book sticks to your hands -
+Now you are unable to draw your weapon!"
+      #1 'bf' STO ; }
+  #6 fna #1 - GET EVAL + DISP ;
+'l5060' STO
+
+(5230 Empty out current space.  Used to jump to 2920.)
+:: l #0 z fnd PUT 'l' STO ; 'l5230' STO
+
+(5250 Open a chest.)
+:: l5230 (Empty the square.)
+  { :: "KABOOM! It explodes!" + DISP
+      #6 fna 'q' STO l8740
+      st #1 < 'l8840' IFT ; 
+    :: "find " + #1000 fna DUP 'q' STO +
+      " gold pieces!" + DISP gp q + 'gp' STO ; 
+    :: "GAS!! You stagger from the room!" + DISP 
+      t #20 + 't' STO (Lose 20 turns)
+      "nsew" #4 fna #1 - GET 'Os' STO l3900 ; }
+   #4 fna #1 - DUP #3 == :: DROP #1 ; IFT  (Double shot at finding gold.)
+   GET EVAL 
+;
+'l5250' STO
+
+(5390 Gaze into a non-Zot orb.)
+::
+  l z fnd GET #10 ==
+  :: "" DISP "You see " 
+    { :: "yourself in a bloody heap!" + DISP
+        st #2 fna - 'st' STO (Lose hitpoints regardless of armor.)
+        st #1 < 'l8840' IFT ;
+      :: "yourself drinking from a pool and becoming " + Cs #11 #13 fna + GET +
+        "!" + DISP ;
+      :: Cs #11 #13 fna + GET + " gazing back at you!" + DISP ;
+      :: x 'a' STO y 'b' STO z 'c' STO
+         #8 fna 'x' STO #8 fna 'y' STO #8 fna 'z' STO
+         l DUP z fnd GET fne DUP 'q' STO  (Reveal a space.)
+         z fnd PUT 'l' STO
+         Cs q GET + " at (" + x + ", " + y + ") level " + z + "." + DISP
+         a 'x' STO b 'y' STO c 'z' STO ;
+      :: #8 fna 'a' STO #8 fna 'b' STO #8 fna 'c' STO
+         #8 fna #4 < 
+         :: o OBJ> DROP 'c' STO 'b' STO 'a' STO ; IFT
+         "*** THE ORB OF ZOT *** at (" + a + ", " + b + ") level " + c +
+         "!" + DISP ;
+      :: "a soap opera rerun!" + DISP ; } 
+    #6 fna #1 - GET EVAL
+  ;
+  :: "** It's hard to gaze without an orb!" DISP ;
+  IFTE
+;
+'l5390' STO
+
+(5650 Teleportation.)
+:: rf
+  :: "X-coordinate? " 'Zs' STO l9990 q 'x' STO
+    "Y-coordinate? " 'Zs' STO l9990 q 'y' STO
+    "Z-coordinate? " 'Zs' STO l9990 q 'z' STO
+    l5920 ;
+  :: "** You can't teleport without the runestaff!" DISP ;
+  IFTE
+;
+'l5650' STO
+
+(5800 Prompt for quit.)
+:: "" DISP
+  "Do you really want to quit now? " l9850
+  "" DISP
+  Os "y" ==
+  :: "" DISP #0 'of' STO l9080 ;  (Orbs are for closers.)
+  :: "** Then don't say that you do!" DISP ;
+  IFTE ;
+'l5800' STO
+
+(5920 Display status information and dispatch according to current location.)
+:: 
+  :: "" DISP
+    bl NOT :: l10160 "" DISP ; IFT  (Show position if not blind.)
+    "Strength = " st + "  Intelligence = " + iq + "  Dexterity = " + dx + DISP
+    "Treasures = " tc + "  Flares = " + fl + "  Gold pieces = " + gp + DISP
+    "Weapon = " Ws wv GET + "  Armor = " + Ws av #4 + GET + 
+    lf :: "  And a lamp" + ; IFT
+    DISP
+    #0 'wc' STO
+    l z fnd GET fne 'q' STO
+    l q z fnd PUT 'l' STO
+    "You now have " 'Zs' STO
+    "" DISP
+    "Here you find " Cs q GET + "." + DISP
+    (Dispatch based on the thing we found.
+     Each of these blocks leaves a flag to indicate if it's still looking
+     to the following blocks, except the last. It's more or less a case 
+     structure.)
+    q #6 < q #10 == OR q #11 == OR
+    :: #0 #0 ; #1 IFTE (Drop straight out if it's one of these.)
+    :: q #6 == (Is it gold?)
+      :: gp #10 fna + 'gp' STO Zs gp + "." + DISP l5230 #0 #0 ; #1 IFTE ;
+    #0 IFTE (Keep flag clear if we're done looking.)
+    :: q #7 == (Is it flares?)
+      :: fl  #5 fna + 'fl' STO Zs fl + "." + DISP l5230 #0 #0 ; #1 IFTE ;
+    #0 IFTE
+    :: q #8 == (It's a warp, or the Orb of Zot.)
+      :: o #0 GET x == o #1 GET y == AND o #2 GET z == AND
+        :: Os "t" ==  (Oh dear, it is the Orb, did we teleport there?)
+          :: l9370 (yes, then you get it) #0 ;
+          :: l3900 (no, skip right past it and repeat) #1 ;
+          IFTE ;
+        :: #8 fna 'x' STO (Not the orb, so teleport and repeat.)
+          #8 fna 'y' STO
+          #8 fna 'z' STO
+          #1 ; 
+        IFTE #0 ; #1 IFTE ;
+    #0 IFTE 
+    :: q #9 == (If it's a sinkhole, drop a level and repeat.)
+      :: z #1 + fnb 'z' STO #1 #0 ; #1 IFTE ;
+    #0 IFTE
+    :: q #24 <= q #33 >= OR (Enemy or vendor, jump to trade/battle mode.)
+      :: l6180 #0 #0 ; #1 IFTE ;
+    #0 IFTE
+    :: (If there's anything left, it's treasure.)
+      "" DISP
+      "It's now yours!" DISP
+      tA #1 q #25 - PUT 'tA' STO
+      tc #1 + 'tc' STO
+      l5230 #0 ; 
+    IFT ;
+  REP ;
+'l5920' STO
+
+(6180 Vendor/enemy dispatch.)
+:: l z fnd GET #12 - 'a' STO
+  #0 'wc' STO
+  a #12 < vf OR  (If it's an enemy or vendors are pissed, do battle.)
+  'l7390'
+  (Otherwise see what the user wants to do with the vendor.)
+  :: 
+    :: "" DISP "You may trade with, attack, or ignore the vendor." DISP l9830
+      Os "i" == #0 #1 IFTE   (Ignore just drops us from the loop.)
+      :: Os "a" == 
+        :: #1 'vf' STO (All vendors now hostile.) 
+          "" DISP "You'll be sorry that you did that!" DISP l7390 #0 ; 
+        #1 IFTE ; #0 IFTE
+      :: Os "t" == 
+        :: l6340 #0 ; #1 IFTE ; #0 IFTE
+      DUP
+      :: "" DISP "** Nice shot, " Rs rc GET + "!" + DISP ; IFT ;
+    REP ;
+  IFTE
+;
+'l6180' STO
+
+(6340 Trade with a vendor.)
+::
+  #0 'q' STO (First offer to buy all the player's treasure.)
+  :: q #1 + #1500 * fna 'a' STO (Make up a price according to treasure number.)
+    tA q GET
+    :: 
+      :: "" DISP "Do you want to sell " Cs q #25 + GET + 
+         " for " + a + " GP's? " + l9850
+        Os "y" ==
+        :: tc #1 - 'tc' STO tA #0 q PUT 'tA' STO gp a + 'gp' STO #0 ;
+        #1 IFTE
+        :: Os "n" != :: Ys DISP #1 ; #0 IFTE ; #0 IFTE ;
+      REP ;
+    IFT
+    q #1 + DUP 'q' STO #8 < ;
+  REP
+  gp #1000 >=  (Nothing cheaper than a grand.)
+  :: gp #1250 >=  (Only show armor if user has 1250.)
+    :: 
+      :: "" DISP "Ok, " Rs rc GET + ", you have " + gp + " GP's and " +
+        Ws av #4 + GET + " armor." + DISP "" DISP
+        "armor" 'Zs' STO l10130
+        "Nothing<0> Leather<1250> "
+        gp #1499 > "Chainmail<1500> " "" IFTE +
+        gp #1999 > "Plate<2000>" "" IFTE + DISP "" DISP
+        l9830 "" DISP
+        #1  (This is our repeat flag.)
+        Os "n" == :: DROP #0 #0 ; #1 IFTE  (Nothing, skip out.)
+        :: Os "l" ==  (Leather armor.)
+          :: gp #1250 - 'gp' STO #1 'av' STO #7 'ah' STO DROP #0 #0 ;
+          #1 IFTE ;
+        #0 IFTE
+        :: Os "c" ==  (Chainmail, if we can afford it.)
+          :: gp #1500 >=
+            :: gp #1500 - 'gp' STO #2 'av' STO #14 'ah' STO DROP #0 ;
+            :: "** You haven't got that much cash on hand!" DISP ;
+            IFTE #0 ;
+          #1 IFTE ;
+        #0 IFTE
+        :: Os "p" ==  (Plate armor, same.)
+          :: gp #2000 >=
+            :: gp #2000 - 'gp' STO #3 'av' STO #21 'ah' STO DROP #0 ;
+            :: "** You can't afford plate armor!" DISP ;
+            IFTE #0 ;
+          #1 IFTE ;
+        #0 IFTE
+        :: "** Don't be silly.  Choose a selection." DISP ; IFT ; 
+      REP ; 
+    IFT
+    (Now do basically the same thing with weapons.)
+    gp #1250 >=  (Only show weapons if user has 1250.)
+    :: 
+      :: "" DISP "You have " gp + " GP's left with " +
+        Ws wv GET + " in hand." + DISP "" DISP
+        "weapon" 'Zs' STO l10130
+        "Nothing<0> Dagger<1250> "
+        gp #1499 > "Mace<1500> " "" IFTE +
+        gp #1999 > "Sword<2000>" "" IFTE + DISP "" DISP
+        l9830 "" DISP
+        #1  (This is our repeat flag.)
+        Os "n" == :: DROP #0 #0 ; #1 IFTE  (Nothing, skip out.)
+        :: Os "d" ==  (Dagger.)
+          :: gp #1250 - 'gp' STO #1 'wv' STO DROP #0 #0 ;
+          #1 IFTE ;
+        #0 IFTE
+        :: Os "m" ==  (Mace.)
+          :: gp #1500 >=
+            :: gp #1500 - 'gp' STO #2 'wv' STO DROP #0 ;
+            :: "** Sorry sir, I'm afraid I don't give credit!" DISP ;
+            IFTE #0 ;
+          #1 IFTE ;
+        #0 IFTE
+        :: Os "s" ==  (Sword, same.)
+          :: gp #2000 >=
+            :: gp #2000 - 'gp' STO #3 'wv' STO DROP #0 ;
+            :: "** Your Dungeon Express card - you left home without it!" DISP ;
+            IFTE #0 ;
+          #1 IFTE ;
+        #0 IFTE
+        :: "** Try choosing a selection!" DISP ; IFT ; 
+      REP ;
+    IFT
+    (Now prompt for potions.  Each gives 1d6 boost.)
+    gp #1000 >=
+    ::
+      :: "strength" 'Zs' STO l10070
+        Os "y" ==
+        :: gp #1000 - 'gp' STO
+          st #6 fna + fnc DUP 'st' STO 'q' STO
+          l10100 #0 ; #1 IFTE
+        :: Os "n" != ; #0 IFTE
+        DUP :: Ys DISP ; IFT ;
+      REP ; IFT
+    gp #1000 >=
+    ::
+      :: "intelligence" 'Zs' STO l10070
+        Os "y" ==
+        :: gp #1000 - 'gp' STO
+          iq #6 fna + fnc DUP 'iq' STO 'q' STO
+          l10100 #0 ; #1 IFTE
+        :: Os "n" != ; #0 IFTE
+        DUP :: Ys DISP ; IFT ;
+      REP ; IFT
+    gp #1000 >=
+    ::
+      :: "dexterity" 'Zs' STO l10070
+        Os "y" ==
+        :: gp #1000 - 'gp' STO
+          dx #6 fna + fnc DUP 'dx' STO 'q' STO
+          l10100 #0 ; #1 IFTE
+        :: Os "n" != ; #0 IFTE
+        DUP :: Ys DISP ; IFT ;
+      REP ; IFT
+    gp #1000 >= lf NOT AND  (And finally ask about a lamp.)
+    :: 
+      :: "" DISP "Do you want to buy a lamp for 1000 GP's? " l9850 
+        Os "y" ==
+        :: gp #1000 - 'gp' STO #1 'lf' STO
+          "" DISP "It's guaranteed to outlive you!" DISP #0 ; #1 IFTE
+        :: Os "n" != ; #0 IFTE
+        DUP :: Ys DISP ; IFT ;
+      REP ; 
+    IFT ;
+  :: "You're too poor to trade, " Rs rc GET + "." + DISP ;
+  IFTE ;
+'l6340' STO
+
+(7390 Battle.)
+(The enemy hitpoint/damage formulas change slightly because of option base 0.)
+::
+  #1 a #1 + 2 / >INT + 'q1' STO a #3 + 'q2' STO #1 'q3' STO "" 'Os' STO
+  (Sloth curse, blindness, or low dex causes enemy to get the jump.)
+  cA #0 GET #3 GET tA #0 GET > bl OR dx #9 fna #9 fna + < OR
+  :: l7730 st #0 <= :: l8840 BAIL ; IFT ; IFT 
+  :: "" DISP
+    "You're facing " Cs a #12 + GET + "!" + DISP "" DISP
+    "You may attack or retreat." DISP
+    q3 :: "You can also attempt a bribe." DISP ; IFT
+    iq #14 > :: "You can also cast a spell." DISP ; IFT "" DISP
+    "Your strength is " st + " and your dexterity is " + dx + "." + DISP
+    l9830
+    Os "a" ==
+    :: "" DISP wv  (If we have a weapon...)
+      :: bf  (and we can draw it...) 
+        :: "** You can't beat it to death with a book!" DISP ;
+        :: dx #20 fna #3 bl * + >=  (Roll for hit.) 
+          :: "You hit the evil " Cs a #12 + GET #2 #30 SUBS DUP #0 
+            GET " " == :: #1 #30 SUBS ; IFT + "!" + DISP
+            q2 wv - 'q2' STO
+            (Gargoyles and dragons can break your weapon.)
+            a #8 == a #11 == OR #8 fna #1 == AND
+            :: "" DISP
+              "Oh no! Your " Ws wv GET + " broke!" + DISP
+              #0 'wv' STO ; 
+            IFT ; 
+          :: "You missed, too bad!" DISP ;
+          IFTE ;
+        IFTE ;
+      :: "** Pounding on " Cs a #12 + GET + " won't hurt it!" + DISP ;
+      IFTE
+      (Now it's the enemy's turn.)
+      l7730 #0 ; 
+    #1 IFTE
+    :: Os "c" == (Cast a spell.)
+      :: iq #15 >= q3 #1 <= OR
+        :: "" DISP "Which spell (web, fireball, deathspell)? " l9850 "" DISP
+          Os "w" ==  (Cast a web, costs 1 strength.)
+          :: st #1 - DUP 'st' STO #8 fna #1 + 'wc' STO
+             st 'l7730' IFT #0 ;
+          #1 IFTE
+          :: Os "f" == (Cast a fireball, costs 1 each strength and iq.)
+            :: #7 fna #7 fna + 'q' STO
+              st #1 - 'st' STO iq #1 - 'iq' STO
+              st iq AND  (It only works if we don't die first.)
+              :: "It does " q + " points worth of damage." + DISP "" DISP
+                q2 q - 'q2' STO l7730 ; IFT #0 ;
+            #1 IFTE ;
+          #0 IFTE 
+          :: Os "d" ==  (Cast death.  No cost: one'a you dies.)
+            :: "Death . . . "
+              iq #4 fna #15 + <
+              :: "YOURS!" + DISP #0 'iq' STO ;
+              :: "HIS!" + DISP #0 'q2' STO l7730 ;
+              IFTE #0 ;
+            #1 IFTE ;
+          #0 IFTE
+          :: "** Try one of the options given." DISP ; IFT ;
+        :: "" DISP "** You can't cast a spell now!" DISP ;
+        IFTE #0 ;
+      #1 IFTE ;
+    #0 IFTE
+    :: Os "r" == (Oh, we were trying to retreat?)
+      :: l7730 (Enemy gets its turn first.)
+        st #0 > (We only escape if we survive.)
+        :: #0 'q2' STO "" DISP "You have escaped!" DISP
+          :: "Do you want to go north, south, east, or west? " l9850
+            Os "n" == Os "s" == OR Os "e" == OR Os "w" == OR
+            :: l3900 #0 ;
+            :: "" DISP "** Don't press your luck, " Rs rc GET + "!" + DISP #1 
+               "" DISP ;
+            IFTE ;
+          REP ;
+        IFT #0 ;
+      #1 IFTE ;
+    #0 IFTE
+    :: Os "b" == (Bribe attempt.)
+      :: tc (Only works if player has treasure.)
+        :: :: tA #8 #1 - fna DUP 'q' STO GET NOT ; REP (Choose random treasure.)
+          :: "I want " Cs q #25 + GET + ". Will you give it to me? " + l9850
+            Os "n" == 
+            :: l7730 #0 ;
+            :: Os "y" ==
+              :: tA #0 q PUT 'tA' STO 
+                 tc #1 - 'tc' STO
+                 "" DISP "Ok, just don't tell anyone else." DISP
+                 (Bribing a vendor placates them all.)
+                 vf l z fnd GET #24 == - 'vf' STO 
+                 #0 'q2' STO #0 ;
+              :: Ys DISP #1 ;
+              IFTE ;
+            IFTE ;
+          REP ;
+        :: "All I want is your life!" DISP l7730 ; 
+        IFTE #0 ; 
+      #1 IFTE ;
+    #0 IFTE
+    :: "** Choose one of the options listed." DISP ; IFT
+    st #1 < iq #1 < OR :: #0 'q2' STO l8840 ; IFT (We ded.)
+    q2 #0 > ; 
+  REP ; (Repeat while enemy has strength.) 
+'l7390' STO
+
+(7730 Enemy dies/8420 enemy attacks.)
+:: q2 #1 <
+  :: (mc #1 - 'mc' STO) (Dead code from original game.)
+    Cs a #12 + GET " lies dead at your feet!" + DISP
+    h t 60 - <=  (Eat if it's been a bit.)
+    :: "" DISP
+      "You spend an hour eating " Cs a #12 + GET + 
+      Es #8 fna #1 - GET + "." + DISP 
+      t 'h' STO ;
+    IFT 
+    (They got the runestaff maybe?)
+    r OBJ> DROP z == SWAP y == AND SWAP x == AND
+    :: #7 >ASC DISP
+      "Great Zot! You've found the runestaff!" DISP
+      r #0 #0 PUT 'r' STO #1 'rf' STO ;
+    IFT
+    (Did we happen to kill a vendor?)
+    a #12 ==
+    :: "" DISP "You get all his wares: 
+Plate armor
+A sword
+A strength potion
+An intelligence potion
+A dexterity potion" DISP
+      #3 'av' STO #21 'ah' STO #3 'wv' STO
+      st #6 fna + fnc 'st' STO
+      iq #6 fna + fnc 'iq' STO
+      dx #6 fna + fnc 'dx' STO
+      lf NOT :: "A lamp" DISP #1 'lf' STO ; IFT ;
+    IFT
+    #1000 fna 'q' STO "" DISP
+    "You now get his hoard of " q + " GP's" + DISP
+    gp q + 'gp' STO 
+    l5230 ; 
+  (8420 Enemy attacks.)
+  :: #2 'q3' STO
+    wc #0 >  (Each turn weakens a web spell, if there is one.)
+    :: wc #1 - DUP 'wc' STO
+      NOT :: "" DISP "The web just broke!" DISP ; IFT ; 
+    IFT
+    (Pick the article off the front of the enemy name.)
+    "" DISP
+    "The " Cs a #12 + GET #2 #30 SUBS DUP #0 GET " " == :: #1 #30 SUBS ; IFT +
+    wc
+    :: " is stuck and can't attack now!" + DISP ;
+    :: " attacks!" + DISP "" DISP
+      dx #7 fna #7 fna + #7 fna + #3 bl * + <
+      :: "OUCH! He hit you!" DISP
+         q1 'q' STO l8740 ;
+      :: "What luck, he missed you!" DISP ;
+      IFTE ;
+    IFTE ;
+  IFTE ;
+'l7730' STO
+('l8420' STO)
+
+(8740 Take a hit.)
+::
+  av (If we have armor, the armor takes damage first.)
+  :: q av - 'q' STO ah av - 'ah' STO
+    q #0 < :: ah q - 'ah' STO #0 'q' STO ; IFT
+    ah #0 < 
+    :: #0 'ah' STO #0 'av' STO
+      "" DISP
+      "Your armor has been destroyed . . . good luck!" DISP ; 
+    IFT ;
+  IFT
+  st q - 'st' STO
+;
+'l8740' STO
+
+(8840 You died.)
+:: #7 >ASC DISP l9770
+  "A noble effort, oh formerly living " Rs rc GET + "!" + DISP
+  "" DISP "You died due to lack of "
+  st #1 < :: "strength." + ; IFT
+  iq #1 < :: "intelligence." + ; IFT
+  dx #1 < :: "dexterity." + ; IFT
+  DISP "" DISP
+  #1 'q3' STO
+  "At the time you died, you had :" DISP
+  l9120 ;
+'l8840' STO
+
+(8960 You left.)
+:: #0 'q3' STO "" DISP
+  "You left the castle with"
+  of NOT :: "out" + ; IFT
+  " the Orb of Zot." + DISP l9080 ;
+'l8960' STO
+
+(9080 Or you just quit.)
+:: of
+  "
+An incredibly glorious victory!!
+
+In addition, you got out with the following :"
+  "
+A less than awe-inspiring defeat.
+
+When you left the castle, you had :"
+  IFTE DISP l9120 ;
+'l9080' STO
+
+(9120 Enumerate your successes and ask for another game.)
+:: q3 NOT :: "Your miserable life!" DISP ; IFT
+  #0 'q' STO
+  :: tA q GET     (Show any treasures obtained.)
+    :: Cs q #25 + GET DISP ; IFT
+    q #1 + DUP 'q' STO #8 < ; REP
+  Ws wv GET " and " + Ws av #4 + GET +  (Equipment.)
+  lf :: " and a lamp" + ; IFT DISP  (Lamp.)
+  "You also had " fl + " flares and " + gp + " gold pieces" + DISP
+  rf :: "And the runestaff" DISP ; IFT
+  "" DISP
+  "And it took you " t + " turns!" + DISP
+  "" DISP
+  :: (Repeat til we get a real answer.)
+    "Are you foolish enough to want to play again? " l9850  
+    Os "n" ==
+    :: "Maybe dumb " Rs rc GET + " is not so dumb after all!" + DISP
+      "" DISP CLR ; IFT
+    Os "y" ==
+    :: "Some " Rs rc GET + "s never learn!" + DISP
+      "" DISP
+      "Please be patient while the castle is restocked." DISP
+      "" DISP
+      l1240 l5920 #0 ; #1 IFTE (Re-roll character, show status, drop back to loop.)
+    DUP :: Ys DISP ; IFT ;
+  REP ;
+'l9120' STO
+
+(9370 Finding the zotorb.)
+:: "
+GREAT UNMITIGATED ZOT!
+
+You just found ***THE ORB OF ZOT***!
+
+The runestaff has disappeared!" DISP
+  #0 'rf' STO #1 'of' STO
+  o #0 #0 PUT 'o' STO
+  l5230 ;
+'l9370' STO
+
+(9590 Generate random X/Y coordinates for an empty space, and insert Q.)
+:: :: 8 fna 'x' STO 8 fna 'y' STO l z fnd GET #100 != ; REP
+   l q z fnd PUT 'l' STO ;
+'l9590' STO
+
+(9770 Print a line of asterisks.)
+:: "*" #64 * DISP "" DISP ; 'l9770' STO
+
+(9830 Inquire about a choice.)
+:: "" DISP "Your choice? " l9850 ; 'l9830' STO
+
+(9850 Return the first letter of typed input, if any.)
+:: PROMPT DUP LEN
+  :: #0 GET ; IFT
+  'Os' STO ;
+'l9850' STO
+
+(9880 Inquire about adding to one's stats.)
+:: ""
+  :: "How many points do you wish to add to your " + Zs + "? " + PROMPT
+    'Os' STO
+    "" DISP
+    Os VAL DUP 'q' STO
+    #0 == 	(if q=0)
+    Os LEN :: Os ASC> #48 != ; #1 IFTE AND (if Os exists and != chr 48)
+    :: #-1 'q' STO ; IFT (then q=-1)
+    q #0 < q ot > OR q q >INT != OR :: "** " #1 ; #0 IFTE ; REP
+  ot q >INT DUP 'q' STO - 'ot' STO ; (make sure we're integral, return q,
+  subtract q from available points)
+'l9880' STO
+
+(9990 Prompt for and validate coordinates.)
+::
+  :: "" DISP
+    Zs PROMPT VAL >INT 'q' STO
+    q #0 <= q #9 >= OR DUP
+    :: "" DISP "** Try a number from 1 to 8." DISP ; IFT ;
+  REP ;
+'l9990' STO
+
+(10070 Prompt for potions.)
+:: "" DISP
+  "Do you want to buy a potion of " Zs + " for 1000 GP's? " + l9850 ;
+'l10070' STO
+
+(10100 Show new stat.)
+:: "" DISP 
+  "Your " Zs + " is now " + q + "." + DISP ;
+'l10100' STO
+
+(10130 Prompt text for equipment.)
+:: "" DISP "These are the types of " Zs + " you can buy :" + DISP ;
+'l10130' STO
+
+(10160 Show current position.)
+:: "You are at (" x + ", " + y + ") level " + z + "." + DISP ;
+'l10160' STO
+  
+(Launch.)
+:: l1240 l5920 l2920 ; 'launch' STO
+
+launch ;
+{} STATIC EVAL

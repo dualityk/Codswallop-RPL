@@ -1,0 +1,184 @@
+(Xterm rainbow starts as black = 10;
+ add 36 for each level of red 0-5
+ add 6 for each level of green 0-5
+ add 1 for each level of blue 0-5)
+
+MKDIR 'COLOR' STO
+
+#27 >ASC "[" + 'COLOR.csi' STO
+
+COLOR.csi "2J" + COLOR.csi + ";H" + 'COLOR.CLEAR' STO
+
+:: (Return an Xterm color from R, G, and B values 0-5.)
+  SWAP #6 * + SWAP #36 * + #10 + ;
+'COLOR.RGBtoxterm' STO 
+
+(Set xterm title bar.)
+:: #27 >ASC "]0;" + SWAP + #7 >ASC + ;
+'COLOR.TITLEBAR' STO
+
+:: >STR #1 #4 SUBS "m" + #27 >ASC "[38;5;" + SWAP + ;
+'COLOR.XTFORE' STO
+
+:: >STR #1 #4 SUBS "m" + #27 >ASC "[48;5;" + SWAP + ;
+'COLOR.XTBACK' STO
+
+COLOR.csi "0m" + 'COLOR.ANSINORMAL' STO
+COLOR.csi "1m" + 'COLOR.ANSIBRITE' STO
+#10 >ASC 'COLOR.ANSIENTER' STO
+
+{ "" } Types.n LEN *
+(Syntax highlighting color strings go here, one per object type.
+ First number is the default color.)
+#251 COLOR.XTFORE Types.Any PUT	     
+#6 COLOR.XTFORE   Types.Integer PUT  
+#6 COLOR.XTFORE	  Types.Float PUT    
+#7 COLOR.XTFORE	  Types.String PUT   
+#1 COLOR.XTFORE	  Types.Symbol PUT   
+#9 COLOR.XTFORE	  Types.Function PUT 
+#2 COLOR.XTFORE	  Types.Comment PUT
+#11 COLOR.XTFORE  Types.Builtin PUT
+#3 COLOR.XTFORE   Types.Internal PUT
+#4 COLOR.XTFORE	  Types.Directory PUT
+#13 COLOR.XTFORE  Types.List PUT
+#14 COLOR.XTFORE  Types.Code PUT
+#251 COLOR.XTFORE Types.Tag PUT
+'COLOR.TYPES' STO
+
+(Show a type coloring legend.)
+::
+  Types.n LEN
+  ::
+    "Object types:" DISP
+    :: idx ": " +
+      COLOR.TYPES idx GET + Types.n idx GET + 
+      COLOR.ANSINORMAL + DISP
+      idx #1 + DUP 'idx' STO max <
+    ; REP 
+  ;
+  { max :idx:#0 } LOCAL ;
+'COLOR.LEGEND' STO
+
+:: (Generic names highlight routine.)
+  NAMES DUP LEN {}
+  :: "Current names:" COLOR.ANSIENTER +
+    ::
+      ournames index GET DUP 
+      >STR LEN #2 + DUP 'itemlen' STO linepos + DUP 'linepos' STO
+      COLOR.margin >
+      :: SWAP DISP "" SWAP itemlen 'linepos' STO ; IFT
+      DUP RCL TYPE 
+      DUP Types.Directory ==
+      :: dirs ournames index GET + 'dirs' STO ; IFT
+      COLOR.TYPES SWAP GET SWAP >STR + + COLOR.TYPES #0 GET +
+      index #1 + DUP 'index' STO length <
+      :: ", " + #1 ; #0 IFTE ; 
+    REP "." + DISP
+    #0 'index' STO
+    :: index dirs LEN < DUP
+      :: "" DISP dirs index GET COLOR.dirnames
+        index #1 + 'index' STO ;
+      IFT ;
+    REP ;
+  { dirs length ournames :index:#0 :linepos:#0 :itemlen:#0 } LOCAL ;
+'COLOR.names' STO
+'COLOR.names' '?' STO
+
+:: (Directory names highlight routine.)
+  :: ourdir DIR DUP LEN
+    :: 
+      length
+      :: "Names in " 'ourdir' RCL + ":" + COLOR.ANSIENTER +
+        ::
+          ournames index GET DUP 
+          >STR LEN #2 + DUP 'itemlen' STO linepos + DUP 'linepos' STO
+          COLOR.margin >
+          :: SWAP DISP "" SWAP itemlen 'linepos' STO ; IFT
+          DUP 
+          >STR 'ourdir' RCL >FUNC >STR "." + SWAP + >SYM RCL TYPE COLOR.TYPES SWAP GET SWAP >STR + + COLOR.TYPES #0 GET +
+          index #1 + DUP 'index' STO length <
+          :: ", " + #1 ; #0 IFTE ; 
+        REP "." + DISP ;
+      :: "Empty directory " 'ourdir' RCL + DISP ;
+      IFTE ;
+    { length ournames :index:#0 :linepos:#0 :itemlen:#0 } LOCAL ;
+  { ourdir } LOCAL ;
+'COLOR.dirnames' STO
+
+
+:: (Syntax highlighting routine.)
+  :: (newline: Create a string representing a new indented line.)
+    indent linepos ==
+    :: bgcolor COLOR.XTBACK ;
+    :: #0 COLOR.XTBACK COLOR.ANSIENTER + " " indent * + bgcolor COLOR.XTBACK + ;
+    IFTE
+    indent 'linepos' STO ;
+  :: (mkone: Color one object.)
+    DUP TYPE
+    DUP DUP `Types.List == SWAP `Types.Code == OR
+    :: DROP SWAP newline + SWAP indent #2 + 'indent' STO bgcolor #1 + mklist + 
+      indent #2 - 'indent' STO newline + ; 
+    :: COLOR.TYPES SWAP GET SWAP >STR 
+       DUP LEN DUP linepos + margin > (Have we ventured past our margin?)
+       linepos indent == NOT AND (Aaaaaaa)
+       :: indent + newline SWAP #1 + 'linepos' STO SWAP + + " " + ;
+       :: linepos #1 + + 'linepos' STO + " " + ;
+       IFTE ;
+    IFTE
+    COLOR.TYPES #0 GET + ;
+  :: (mklist: Color a composite object.)
+    SWAP DUP DUP LEN SWAP TYPE #0
+    :: lstype 
+      { { :: `Types.List == ; :: COLOR.TYPES `Types.List GET "{ " linepos #2 + 'linepos' STO ; }
+        { :: `Types.Code == ; :: COLOR.TYPES `Types.Code GET ":: " linepos #3 + 'linepos' STO ; } }
+      KCASE + bgcolor COLOR.XTBACK SWAP +
+      lstlen
+      ::
+        ::
+          'lst' RCL index GET mkone +
+          index #1 + DUP 'index' STO
+          lstlen < ;
+        REP ;
+      IFT
+      lstype
+      { { :: `Types.List == ; :: COLOR.TYPES `Types.List GET "}" ; }
+        { :: `Types.Code == ; :: COLOR.TYPES `Types.Code GET ";" ; } }
+      KCASE + ;
+    { index lstype lstlen lst bgcolor } LOCAL ;
+  #15 (Starting background color)
+  COLOR.margin (Screen width)
+  #0 (Starting indent)
+  #0 (Starting line position)
+  :: "" SWAP mkone + COLOR.ANSINORMAL SWAP + COLOR.ANSINORMAL + ; 
+  { linepos indent margin bgcolor mklist mkone newline } LOCAL ;
+{} STATIC
+'COLOR.COLOROBJ' STO
+
+
+:: (Fancy stack printing routine.)
+  (Grab the stack and see if there's a limit to how much we should show.)
+  ("Stack:" DISP)
+  STACK DUP LEN 'COLOR.stacklimit' EXISTS
+  :: (If we're limited, move our start point forward as necessary.)
+    DUP COLOR.stacklimit >
+    :: DUP COLOR.stacklimit - DUP COLOR.ANSIBRITE 
+       " ( +" + SWAP + " lines )" + COLOR.ANSINORMAL + DISP ;
+    #0 IFTE ;
+  #0 IFTE
+  (Now loop through and git it.)
+  :: stop (If there is anything to git, that is.)
+    ::
+      :: "Line " COLOR.ANSIBRITE + stop start - + COLOR.ANSINORMAL + ": " +
+        list start GET COLOR.COLOROBJ + DISP
+        start #1 + DUP 'start' STO stop < ;
+      REP ;
+    :: "Empty stack" DISP ;
+    IFTE ;
+  { start stop list } LOCAL ;  
+{} STATIC
+'COLOR.STACK' STO
+
+#78 'COLOR.margin' STO (Default screen width)
+ #8 'COLOR.stacklimit' STO (Default stack printing limit)
+
+VERSION COLOR.TITLEBAR DISPN (Set the titlebar to the version.)

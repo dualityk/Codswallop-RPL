@@ -1,0 +1,561 @@
+(This file prepares all of the builtin commands.  As handed to us, the only
+ information available is a list of types and a set of internals: single 
+ dispatch routines with no type or argument checking.  Our job is to build 
+ the nice safe userspace from those building blocks.
+
+ This will follow the basic form of a dispatch table:
+ { { `internal Types.typename ... }
+   ... }
+ #n argument count
+ "Hint string for DOC"
+ 'NAME' name of record for error reporting purposes
+ 
+ Then turned into a builtin with >BIN and stored with a given name.)
+
+(To make things easier, we built >BIN and STO first.)
+(Make a builtin)
+{ { `I*.>bin `Types.List `Types.Integer `Types.String `Types.Symbol } }
+#4
+"Build a new built-in from a hint string, symbol name, an argument count,
+and a dispatch table in the form of:
+  { { code objtype1 objtype2 ... } ... }"
+'>BIN'
+I*.>bin '>BIN' I*.sto
+
+(Store)
+{ { `I*.sto `Types.Any `Types.Symbol }
+  { `I*.sto `Types.Any `Types.Function }
+  { `I*.stoto `Types.Any `Types.Tag } }
+#2
+"Write an object into the named store, either to a local variable if it exists, or to the main store (or into a tag)."
+'STO'
+>BIN 'STO' I*.sto
+
+{ { `I*.>tag `Types.Any `Types.Symbol }
+  { `I*.>tag `Types.Any `Types.Function } }
+#2
+"Prepare a new tag object from any object and a non-dotted symbol."
+'>TAG'
+>BIN '>TAG' STO
+
+( ### Temporaries )
+
+(Count of first objects in store.)
+{ { `I*.firsts } }
+#0
+"Count up how many first directory entries there are in the named store."
+'FIRSTS' >BIN 'FIRSTS' STO
+
+( ### Documentation )
+
+(List of names.)
+{ { `I*.names } }
+#0
+"Return a list of all global symbols."
+'NAMES' >BIN 'NAMES' STO
+
+(List of names in a directory.)
+{ { `I*.dir `Types.Directory } }
+#1
+"Return a list of all names in a directory."
+'DIR' >BIN 'DIR' STO
+
+(Document an object.)
+{ { `I*.doc `Types.Symbol } 
+  { `I*.doc `Types.Function } }
+#1
+"Display information about a symbol, along with any extra hints about its purpose."
+'DOC' >BIN 'DOC' STO
+
+(Object type.)
+{ { `I*.type `Types.Any } }
+#1
+"Return an integer representing the type of an object."
+'TYPE' >BIN 'TYPE' STO
+
+(Introspect.)
+{ { `I*.self } }
+#0
+"Return the currently executing code block."
+'SELF' >BIN 'SELF' STO
+
+
+( ### Input/Output)
+
+(Display.)
+{ { `I*.disp `Types.Any } }
+#1
+"Print any object in human-readable form to the screen."
+'DISP' >BIN 'DISP' STO
+
+(Display no newline.)
+{ { `I*.dispn `Types.Any } }
+#1
+"DISP without newline."
+'DISPN' >BIN 'DISPN' STO
+
+(Console input.)
+{ { `I*.prompt `Types.Any } }
+#1
+"Line input from stdin, with x as a prompt."
+'PROMPT' >BIN 'PROMPT' STO
+
+(Time.)
+{ { `I*.epoch } }
+#0
+"Returns epoch time as a floating point number."
+'EPOCH' >BIN 'EPOCH' STO
+
+
+( ### Stack manipulation )
+
+(Return whole stack.)
+{ { `I*.stack } }
+#0
+"Push stack onto the stack."
+'STACK' >BIN 'STACK' STO
+
+(Drop.)
+{ { `I*.drop `Types.Any } }
+#1
+"Pop and discard the first line of the stack."
+'DROP' >BIN 'DROP' STO
+
+(Clear stacks.)
+{ { `I*.clr } }
+#0
+"Clear call and data stacks (end program)."
+'CLR' >BIN 'CLR' STO
+
+(Evaluate.)
+{ { `I*.eval `Types.Any } }
+#1
+"Evaluate the object on the first line of the stack."
+'EVAL' >BIN 'EVAL' STO
+
+(Swap.)
+{ { `I*.swap `Types.Any `Types.Any } }
+#2
+"Swap lines 1 and 2 of the stack."
+'SWAP' >BIN 'SWAP' STO
+
+(Duplicate.)
+{ { `I*.dup `Types.Any } }
+#1
+"Duplicate the first line of the stack."
+'DUP' >BIN 'DUP' STO
+
+
+( ### Disk store )
+
+(Write object to disk.)
+{ { `I*.>dsk `Types.Any `Types.String } }
+#2
+"Write an object to disk.  In the case of a quoted symbol, a matching STO will be appended."
+'>DSK' >BIN '>DSK' STO
+
+(Parse and evaluate from disk.)
+{ { `I*.dsk> `Types.String } }
+#1
+"Read a file from disk and shove it straight into the parser."
+'DSK>' >BIN 'DSK>' STO
+
+
+( ### Named store )
+(Recall symbol)
+{ { `I*.rcl `Types.Symbol }
+  { `I*.rcl `Types.Function }
+  { `I*.rclfrom `Types.Tag } }
+#1
+"Recall an object from the most local named store that has it, or extract an object from a tag."
+'RCL' >BIN 'RCL' STO
+
+(Dereference symbol)
+{ { `I*.deref `Types.Symbol }
+  { `I*.deref `Types.Function } }
+#1
+"Return de reference of the most local entry of this symbol in the named store."
+'DEREF' >BIN 'DEREF' STO
+
+(Does it exist?)
+{ { `I*.exists `Types.Symbol }
+  { `I*.exists `Types.Function } }
+#1
+"Check to see if a symbol exists in the current named store (including locals.)"
+'EXISTS' >BIN 'EXISTS' STO
+
+(Erase name)
+{ { `I*.rm `Types.Symbol }
+  { `I*.rm `Types.Function } }
+#1
+"Remove an object from the most local named store."
+'RM' >BIN 'RM' STO
+
+(New local context)
+{ { `I*.local `Types.Code `Types.List } }
+#2
+"Create and evaluate a local variable context.  Stack level 2 contains the code which will run in the context; stack level 1 contains a list of symbol names for that context.  Levels 3 and up contain the objects to be stored."
+'LOCAL' >BIN 'LOCAL' STO
+
+
+( ### Flow control )
+(SST)
+{ { `I*.sst } }
+#0
+"Enable single step debugging mode."
+'SST' >BIN 'SST' STO
+
+(No SST)
+{ { `I*.sstoff } }
+#0
+"Disable single step debugging mode."
+'SSTOFF' >BIN 'SSTOFF' STO
+
+(Bail)
+{ { `I*.bail } }
+#0
+"Bail out of a context (pop one off the call stack)."
+'BAIL' >BIN 'BAIL' STO
+
+(Bail-eval)
+{ { `I*.beval } }
+#0
+"Bail out of a context and evaluate a new one (this is more or less a goto.)"
+'BEVAL' >BIN 'BEVAL' STO
+
+(If then)
+{ { `I*.ift `Types.Any `Types.Any } }
+#2
+"If stack level 2 is true, then evaluate stack level 1."
+'IFT' >BIN 'IFT' STO
+
+(If then else)
+{ { `I*.ifte `Types.Any `Types.Any `Types.Any } }
+#3
+"If stack level 3 is true, then evaluate line 2, else evaluate line 1."
+'IFTE' >BIN 'IFTE' STO
+
+(Addition)
+{ { `I*.+int   `Types.Integer `Types.Integer }
+  { `I*.+float `Types.Float   `Types.Float }
+  { `I*.+float `Types.Integer `Types.Float }
+  { `I*.+float `Types.Float   `Types.Integer }
+  { `I*.+str   `Types.String  `Types.Any }
+  { `I*.+str   `Types.Any     `Types.String }
+  { `I*.+list  `Types.List    `Types.Any }
+  { `I*.+code  `Types.Code    `Types.Code } }
+#2
+"Add or concatenate two objects."
+'+' >BIN '+' STO
+
+(Multiply)
+{ { `I*.*int       `Types.Integer `Types.Integer }
+  { `I*.*float     `Types.Float   `Types.Float }
+  { `I*.*float     `Types.Integer `Types.Float }
+  { `I*.*float     `Types.Float   `Types.Integer }
+  { `I*.*str       `Types.String  `Types.Integer }
+  { `I*.*composite `Types.List    `Types.Integer }
+  { `I*.*composite `Types.Code    `Types.Integer } }
+#2
+"Arithmetic multiply, or repeat strings, lists, or programs."
+'*' >BIN '*' STO
+
+(Subtract)
+{ { `I*.-int   `Types.Integer `Types.Integer }
+  { `I*.-float `Types.Float   `Types.Float }
+  { `I*.-float `Types.Integer `Types.Float }
+  { `I*.-float `Types.Float   `Types.Integer } }
+#2
+"Arithmetic subtraction."
+'-' >BIN '-' STO
+
+(Divide)
+{ { `I*./int   `Types.Integer `Types.Integer }
+  { `I*./float `Types.Float   `Types.Float }
+  { `I*./float `Types.Integer `Types.Float }
+  { `I*./float `Types.Float   `Types.Integer } }
+#2
+"Arithmetic division."
+'/' >BIN '/' STO
+
+(Negate)
+{ { `I*.neg `Types.Integer }
+  { `I*.neg `Types.Float } }
+#1
+"Negate a number."
+'NEG' >BIN 'NEG' STO
+
+(Random)
+{ { `I*.rnd } }
+#0
+"Return a random number between 0 and 1."
+'RND' >BIN 'RND' STO
+
+(Integer portion)
+{ { `I*.ip `Types.Float }
+  { `I*.ip `Types.Integer } }
+#1
+"Return integer portion of floating point number."
+'IP' >BIN 'IP' STO
+
+
+( ### Conversions )
+
+(>BIN would go here but it's up top.)
+
+(Make directory)
+{ { `I*.mkdir } }
+#0
+"Create a new empty directory."
+'MKDIR' >BIN 'MKDIR' STO
+
+(Coerce to integer)
+{ { `I*.num>int `Types.Float }
+  { `I*.str>int `Types.String }
+  { (Fageddaboudit) `Types.Integer } }
+#1
+"Make a number or string an integer."
+'>INT' >BIN '>INT' STO
+
+(Coerce to float)
+{ { `I*.num>float   `Types.Integer }
+  { `I*.str>float   `Types.String }
+  { (Fageddaboudit) `Types.Float } }
+#1
+"Make a number or string a float."
+'>FLOAT' >BIN '>FLOAT' STO
+
+(Basic-type VAL)
+{ { `I*.basicval `Types.String } }
+#1
+"Like BASIC, turn a string into a float, 0 if 0, 0 also if error."
+'VAL' >BIN 'VAL' STO
+
+(Character to integer)
+{ { `I*.asc> `Types.String } }
+#1
+"Retreive the character number of the first character in a string."
+'ASC>' >BIN 'ASC>' STO
+
+(Integer to character)
+{ { `I*.>asc `Types.Integer } }
+#1
+"Return a character from an integer value."
+'>ASC' >BIN '>ASC' STO
+
+(String to objects)
+{ { `I*.>obj `Types.String } }
+#1
+"Parse a string into an RPL object."
+'>OBJ' >BIN '>OBJ' STO
+
+(To symbol)
+{ { `I*.str>sym `Types.String }
+  { `I*.func>sym `Types.Function }
+  { (Nop) `Types.Symbol } }
+#1
+"Turn a string or function into a quoted symbol."
+'>SYM' >BIN '>SYM' STO
+
+(To function)
+{ { `I*.str>func `Types.String }
+  { `I*.sym>func `Types.Symbol }
+  { (Nop) `Types.Function } }
+#1
+"Turn a string or symbol into an unquoted symbol."
+'>FUNC' >BIN '>FUNC' STO
+
+(To string)
+{ { `I*.>str `Types.Any } }
+#1
+"Return a string representation of an object."
+'>STR' >BIN '>STR' STO
+
+( ### Comparisons )
+
+(Equality)
+{ { `I*.== `Types.Any `Types.Any } }
+#2
+"Test two objects for equality."
+'==' >BIN '==' STO
+
+{ { `I*.!= `Types.Any `Types.Any } }
+#2
+"Test two objects for inequality."
+'!=' >BIN '!=' STO
+
+(Less than)
+{ { `I*.< `Types.Integer `Types.Integer }
+  { `I*.< `Types.Float   `Types.Float }
+  { `I*.< `Types.Integer `Types.Float }
+  { `I*.< `Types.Float   `Types.Integer } }
+#2
+"Compare two numbers."
+'<' >BIN '<' STO
+
+(Less than or equal to)
+{ { `I*.<= `Types.Integer `Types.Integer }
+  { `I*.<= `Types.Float   `Types.Float }
+  { `I*.<= `Types.Integer `Types.Float }
+  { `I*.<= `Types.Float   `Types.Integer } }
+#2
+"Compare two numbers."
+'<=' >BIN '<=' STO
+
+(Greater than)
+{ { `I*.> `Types.Integer `Types.Integer }
+  { `I*.> `Types.Float   `Types.Float }
+  { `I*.> `Types.Integer `Types.Float }
+  { `I*.> `Types.Float   `Types.Integer } }
+#2
+"Compare two numbers."
+'>' >BIN '>' STO
+
+(Greater than or equal to)
+{ { `I*.>= `Types.Integer `Types.Integer }
+  { `I*.>= `Types.Float   `Types.Float }
+  { `I*.>= `Types.Integer `Types.Float }
+  { `I*.>= `Types.Float   `Types.Integer } }
+#2
+"Compare two numbers."
+'>=' >BIN '>=' STO
+
+(AND)
+{ { `I*.and `Types.Integer `Types.Integer }
+  { `I*.and `Types.Float   `Types.Float }
+  { `I*.and `Types.Integer `Types.Float }
+  { `I*.and `Types.Float   `Types.Integer } }
+#2
+"Compare two numbers."
+'AND' >BIN 'AND' STO
+
+(OR)
+{ { `I*.or `Types.Integer `Types.Integer }
+  { `I*.or `Types.Float   `Types.Float }
+  { `I*.or `Types.Integer `Types.Float }
+  { `I*.or `Types.Float   `Types.Integer } }
+#2
+"Compare two numbers."
+'OR' >BIN 'OR' STO
+
+(NOT)
+{ { `I*.not `Types.Integer }
+  { `I*.not `Types.Float } }
+#1
+"Boolean NOT: return #0 if object is true, or #1 if it is false."
+'NOT' >BIN 'NOT' STO
+
+
+( ### List functions )
+(Length)
+{ { `I*.len `Types.List }
+  { `I*.len `Types.String }
+  { `I*.len `Types.Code } }
+#1
+"Return the length of a compound object or string."
+'LEN' >BIN 'LEN' STO
+
+(Pop)
+{ { `I*.pop `Types.List }
+  { `I*.pop `Types.Code } }
+#1
+"Pop the last item off a list."
+'POP' >BIN 'POP' STO
+
+(Obj>)
+{ { `I*.composite> `Types.List }
+  { `I*.composite> `Types.Code }
+  { `I*.dir>       `Types.Directory } 
+  { `I*.tag>	   `Types.Tag }
+  { `I*.bin>       `Types.Builtin } }
+#1
+"Break up a composite object into its components, and return the object count in stack level 1 (or the next object in case of directory entries.)"
+'OBJ>' >BIN 'OBJ>' STO
+
+(Subset from left)
+{ { `I*.left `Types.String `Types.Integer }
+  { `I*.left `Types.List   `Types.Integer }
+  { `I*.left `Types.Code   `Types.Integer } }
+#2
+"Fetch a subset of a string, list, or program."
+'LEFT' >BIN 'LEFT' STO
+
+(Subset from right)
+{ { `I*.right `Types.String `Types.Integer }
+  { `I*.right `Types.List   `Types.Integer }
+  { `I*.right `Types.Code   `Types.Integer } }
+#2
+"Fetch a subset of a string, list, or program."
+'RIGHT' >BIN 'RIGHT' STO
+
+(Subset from middle)
+{ { `I*.subs `Types.String `Types.Integer `Types.Integer }
+  { `I*.subs `Types.List   `Types.Integer `Types.Integer }
+  { `I*.subs `Types.Code   `Types.Integer `Types.Integer } }
+#3
+"Fetch a subset of a string, list, or program."
+'SUBS' >BIN 'SUBS' STO
+
+(Get from composite)
+{ { `I*.get `Types.List   `Types.Integer }
+  { `I*.get `Types.String `Types.Integer }
+  { `I*.get `Types.Code   `Types.Integer } }
+#2
+"Fetch an object from a string or list."
+'GET' >BIN 'GET' STO
+
+(Put to composite)
+{ { `I*.put `Types.List `Types.Any `Types.Integer }
+  { `I*.put `Types.Code `Types.Any `Types.Integer } }
+#3
+"Store an object into a list."
+'PUT' >BIN 'PUT' STO
+
+(Make list)
+{ { `I*.>lst          `Types.Integer }
+  { `I*.composite>lst `Types.Code }
+  { (Nothin')         `Types.List } }
+#1
+"Combine x objects into a list, or convert code to a list."
+'>LST' >BIN '>LST' STO
+
+
+( ### Error handling functions )
+(Cause an error)
+{ { `I*.ded `Types.String } }
+#1
+"Invoke error handler with level 1 as its message."
+'DED' >BIN 'DED' STO
+
+(Is there an error?)
+{ { `I*.isded } }
+#0
+"Return a boolean representing an uncleared error."
+'ISDED' >BIN 'ISDED' STO
+
+(Clear error state)
+{ { `I*.unded } }
+#0
+"Clear stored error condition."
+'UNDED' >BIN 'UNDED' STO
+
+(Set error continuation)
+{ { `I*.dedcont `Types.Integer } }
+#1
+"Set error continuation: 0 will stop on error, 1 will suppress some messages but still set ISDED."
+'DEDCONT' >BIN 'DEDCONT' STO
+
+(Set break to singlestep flag)
+{ { `I*.brksst `Types.Integer } }
+#1
+"Set break behavior: 0 will stop on break, 1 will enable single stepping."
+'BRKSST' >BIN 'BRKSST' STO
+
+(Set traceback depth)
+{ { `I*.trace `Types.Integer } }
+#1
+"Set the number of contexts to leave on the call stack with CLR or when tracing back an error (normally 1 for interactive mode, or 0 otherwise.)"
+'TRACE' >BIN 'TRACE' STO
+
+(And now, for safety, erase our internals directory.)
+'I*' RM
