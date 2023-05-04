@@ -1,0 +1,42 @@
+
+(For each item in list or code, push it to the stack and evaluate a thing.
+ For example, 0 { 1 2 3 } '+' FOREACH evaluates 0 1 + 2 + 3 +.)
+
+(An update callback will store an item back to that spot in the list.)
+
+:: SWAP DUP LEN
+  :: '_list' RCL SWAP index PUT '_list' STO ;
+  :: '_list' RCL
+    index #1 + DUP 'index' STO
+    _length >=
+    :: BAIL ; IFT 
+    index GET _evaluator
+    SELF EVAL ;
+  { update _length _list _evaluator :index:#-1 } LOCAL 
+  (This comment prevents tail call optimization, which can cause unexpected
+   behavior if the evaluator code recurses.) ;
+
+'FOREACH' STO
+
+(As an example of how FOREACH can be used, this is a re-implementation of
+ the STATIC command using it.)
+:: 
+  ::
+    :: DUP TYPE Types.Function ==
+      :: DUP exceptions SWAP HAS
+        :: DROP ;
+        :: DUP EXISTS 
+          :: RCL DUP TYPE DUP Types.Internal ==  SWAP Types.Builtin == OR
+            'update' 'DROP' IFTE ;
+          :: DROP ; IFTE ;
+        IFTE ;
+      :: DUP TYPE DUP Types.Code == SWAP Types.List == OR  
+        :: exceptions STATIC update ;
+        :: DROP ;
+        IFTE ;
+      IFTE ;
+    FOREACH ;
+  { exceptions } LOCAL
+;
+DUP 'STATIC' STO {} STATIC 'STATIC' STO
+'FOREACH' RCL {} STATIC 'FOREACH' STO
