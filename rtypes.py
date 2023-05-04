@@ -414,21 +414,22 @@ class typetag(objarchetype):
           # But if they did, now increment and try to retrieve a valid object.
           cursor += 1
           newtoken = parse.parsetoken(token.runtime, token.text, cursor)
-          newtoken.nextobj()
-          # Did we get a thing?
-          if not newtoken.stop:
-            # We did, so fashion a new tag.
-            token.validnext(typetag(ourtext, newtoken.data), newtoken.cursor)
-          elif newtoken.valid:
-            # We didn't get anything, that's a paddlin'.
+          # If we're already at the end of the text, that's an error.
+          if newtoken.stop: 
             token.cursor = cursor
             token.error = "You should put something here"
-            token.stop = True
+            token.stop = True          
           else:
-            # We got an error, pass it along.
-            token.cursor = newtoken.cursor
-            token.error = newtoken.error
-            token.stop = True
+            newtoken.nextobj()
+            # Did we get a thing?
+            if newtoken.valid:
+              # We did, so fashion a new tag.
+              token.validnext(typetag(ourtext, newtoken.data), newtoken.cursor)
+            else:
+              # We got an error, pass it along.
+              token.cursor = newtoken.cursor
+              token.error = newtoken.error
+              token.stop = True
         else:
           token.cursor += 1
           token.error = "This must be a kind-hearted, pure, and dotless symbol"
