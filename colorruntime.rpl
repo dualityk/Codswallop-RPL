@@ -44,34 +44,38 @@
     :: size COLOR.stacklimit - DUP " ( +" SWAP + " lines )" + DISP ;
     #0 IFTE
 
-    (Now, for each call we're going to show, make an abbreviated printable
-     version of each code block.)
+    (Show our calls, if any.)
     ::
-      :: (Make a heading and leave it on the stack.)
-        COLOR.ANSIBRITE "In call " + size index - + ": " + 
-        COLOR.ANSINORMAL + ":: " +
-        (Then grab our line and break it up into little giblets!)
-        core index GET OBJ> DROP
-        ::
-          :: (Get each object for our current code block in turn and make a
-              string.  Recall 'code' so it doesn't just run here!)
-            'code' RCL index GET abbrev
-            (Now, if our instruction pointer matches the index, highlight
-             it!)
-            index ip ==
-            :: #9 COLOR.XTFORE SWAP + COLOR.ANSINORMAL + ;
-            IFT
-            (Then add a space, and increment our index til we're done.)
-            + " " +
-            index #1 + DUP 'index' STO 'code' RCL LEN < ;
-          REP ; 
-        { ip code :index:#0 } LOCAL
-        (And add our closing semicolon and show this whole built-up line.)
-        ";" + DISP
-        (Increment our index and see if we're at the end.)
-        index #1 + DUP 'index' STO size < ;
-      REP ; 
-    { index } LOCAL 
+      (Now, for each call we're going to show, make an abbreviated printable
+       version of each code block.)
+      ::
+        :: (Make a heading and leave it on the stack.)
+          COLOR.ANSIBRITE "In call " + size index - + ": " + 
+          COLOR.ANSINORMAL + ":: " +
+          (Then grab our line and break it up into little giblets!)
+          core index GET OBJ> DROP
+          ::
+            :: (Get each object for our current code block in turn and make a
+                string.  Recall 'code' so it doesn't just run here!)
+              'code' RCL index GET abbrev
+              (Now, if our instruction pointer matches the index, highlight
+               it!)
+              index ip ==
+              :: #9 COLOR.XTFORE SWAP + COLOR.ANSINORMAL + ;
+              IFT
+              (Then add a space, and increment our index til we're done.)
+              + " " +
+              index #1 + DUP 'index' STO 'code' RCL LEN < ;
+            REP ; 
+          { ip code :index:#0 } LOCAL
+          (And add our closing semicolon and show this whole built-up line.)
+          ";" + DISP
+          (Increment our index and see if we're at the end.)
+          index #1 + DUP 'index' STO size < ;
+        REP ; 
+      { index } LOCAL ;
+    :: "You were not doing anything particular at the time." DISP ;
+    IFTE
 
     (And now that we've printed as much traceback as we're going to do, it's
      time to say what actually went wrong.)

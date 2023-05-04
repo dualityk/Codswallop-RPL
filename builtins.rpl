@@ -218,8 +218,8 @@ I*.>bin '>BIN' I*.sto
 'BAIL' >BIN 'BAIL' STO
 
 (Bail-eval)
-{ { `I*.beval } }
-#0
+{ { `I*.beval `Types.Any } }
+#1
 "Bail out of a context and evaluate a new one (this is more or less a goto.)"
 'BEVAL' >BIN 'BEVAL' STO
 

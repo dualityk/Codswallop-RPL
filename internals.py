@@ -363,18 +363,12 @@ def makebinprocs():
 
   # BEVAL: bail and evaluate (goto)
   def x(rt):
-    x = rt.Stack.pop()
-    sym = rt.rcl(x.data)
-    if sym:
-      rt.retcall()
-      if len(rt.Calls):
-        rt.Calls.pop()
-      sym.obj.eval(rt)
-    else:
-      rt.Stack.push(x)
-      rt.ded("There is no "+x.data+" to evaluate")
+    rt.retcall()
+    if len(rt.Calls):
+      rt.Calls.pop()
+    rt.Stack.pop().eval(rt)
   bins += [['beval', x]]
-  
+
   # If-then
   def x(rt):
     th = rt.Stack.pop()
