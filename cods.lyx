@@ -747,10 +747,10 @@ Codswallop RPL
 \end_layout
 
 \begin_layout Standard
-From here, you may type in any valid RPL code which will fit on a single
- line.
- Newlines are not supported when typing directly into the interpreter, and
- the trailing semicolon is automatically appended.
+From here, you may type in any valid RPL code.
+ Newlines are supported when typing directly into the interpreter by typing
+ a backslash as the last character before pressing enter.
+ The trailing semicolon is automatically appended.
  For example, when evaluating 2+2:
 \end_layout
 
@@ -779,6 +779,8 @@ You may exit at any time by typing Ctrl-C or your operating system's end
  of file character (typically Ctrl-D or Ctrl-Z.) Typing Ctrl-C while code
  is executing will start a traceback and return to the REPL, if one was
  running.
+ If your system has readline, you'll have familiar editing keys and a command
+ history.
 \end_layout
 
 \begin_layout Subsubsection
@@ -1236,10 +1238,10 @@ Exploring the named store
 
 \begin_layout Standard
 Other than this document, one way to look around in the interpreter to see
- what your options are is to use NAMES, which will display a list of the
- global symbols currently on offer.
- After you've found a name you're interested in, you can quote it and see
- what it has to say for itself with DOC:
+ what your options are is to use ?, which will display a list of the global
+ symbols currently on offer.
+ After you've found a name you're interested in, if it's a built-in, you
+ can quote it and see what it has to say for itself with DOC:
 \end_layout
 
 \begin_layout LyX-Code
@@ -1264,28 +1266,15 @@ STO is looking for 2 arguments.
 \end_layout
 
 \begin_layout LyX-Code
-Stack 0   
+Stack configuration 0:
 \end_layout
 
 \begin_layout LyX-Code
-Line 2: Any   
+  Line 2: Any   
 \end_layout
 
 \begin_layout LyX-Code
-Line 1: Symbol 
-\end_layout
-
-\begin_layout Standard
-This will even work on the program we just wrote, albeit in a more limited
- capacity.
-\end_layout
-
-\begin_layout LyX-Code
-:: 'hi!' DOC
-\end_layout
-
-\begin_layout LyX-Code
-Fundamental data type 11 (Code) 
+  Line 1: Symbol 
 \end_layout
 
 \begin_layout Subsection
@@ -1524,6 +1513,16 @@ _k
  The first if-case to return a nonzero result has its then-case evaluated,
  and no additional cases are matched.
  These functions support tail calls from then-case blocks.
+ As demonstrated here, you can make an 
+\begin_inset Quotes eld
+\end_inset
+
+else
+\begin_inset Quotes erd
+\end_inset
+
+ case out of your last entry by making sure it always returns a nonzero
+ result: 
 \end_layout
 
 \begin_layout LyX-Code
@@ -1575,7 +1574,7 @@ a suspicious number of cakes.
 \end_layout
 
 \begin_layout LyX-Code
-    { :: 40 >= ; 
+    { :: DROP #1 ; 
 \begin_inset Quotes eld
 \end_inset
 
@@ -5061,9 +5060,9 @@ DOC
 \end_layout
 
 \begin_layout Standard
-Display information about a symbol, including type and type number, or in
- the case of a built-in, additional hints and information about valid stack
- frames:
+Display information about a built-in, such as hints and information about
+ valid stack frames.
+ A symbol is also acceptable:
 \end_layout
 
 \begin_layout Standard
@@ -5087,7 +5086,7 @@ Display information about a symbol, including type and type number, or in
 \begin_inset Text
 
 \begin_layout Plain Layout
-Symbol
+Symbol, Built-in
 \end_layout
 
 \end_inset
@@ -5096,7 +5095,7 @@ Symbol
 \begin_inset Text
 
 \begin_layout Plain Layout
-Name
+Object of interest
 \end_layout
 
 \end_inset
@@ -5944,6 +5943,118 @@ Integer, float, string
 
 \begin_layout Plain Layout
 Float
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph*
+FOREACH
+\end_layout
+
+\begin_layout Standard
+For each object in code or a list on line 2, supply that object on the stack
+ and evaluate against the object on line 1.
+ Objects within the list can be updated using the local symbol 'update':
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="2" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top" width="0pt">
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+List, code
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Source list
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Any
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Evaluator
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+ ⇒ 
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Destination list
 \end_layout
 
 \end_inset
@@ -7317,9 +7428,13 @@ n
 \end_layout
 
 \begin_layout Standard
-Be aware: tail call optimization can cause local variables to unexpectedly
+Tags can also be included anywhere in the list, and will store the name
+ and value without pulling from the stack.
+ Be aware: tail call optimization can cause local variables to unexpectedly
  linger, depending upon where LOCAL is called in relation to the end of
  a code block.
+ To force a new context for a LOCAL at the end of a code block, placing
+ a comment after LOCAL will suffice.
 \end_layout
 
 \begin_layout Paragraph*
