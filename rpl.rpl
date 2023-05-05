@@ -59,11 +59,6 @@ DUP 'STATIC' STO {} STATIC 'STATIC' STO (Bootstrap our static STATIC.)
 
 'HAS' RCL {} STATIC 'HAS' STO (And our static HAS.)
 
-(Now, turn STATIC into a real boy.)
-{ { STATIC `Types.List `Types.List } { STATIC `Types.Code `Types.List } }
-#2 "Except for the symbols in the list on line 1, dereference all builtins in the program on line 2."
-'STATIC' >BIN 'STATIC' STO
-
 (And do the same with HAS.)
 { { HAS `Types.List `Types.Any } }
 #2 "Check to see if a list on line 2 contains something like the item on line 1."
