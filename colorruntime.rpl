@@ -2,7 +2,12 @@
  traceback routine.)
 
 (A nicer single stepper using our type coloring routines.)
-:: COLOR.COLOROBJ
+:: { { :: DUP TYPE Types.List == ; 
+       :: DROP COLOR.TYPES Types.List GET "{ ... }" + COLOR.ANSINORMAL + ; }
+     { :: DUP TYPE Types.Code == ;
+       :: DROP COLOR.TYPES Types.Code GET ":: ... ;" + COLOR.ANSINORMAL + ; }
+     { #1 COLOR.COLOROBJ } }
+   CASE
   :: COLOR.CLEAR "(Depth " + COLOR.ANSIBRITE + depth + COLOR.ANSINORMAL + 
     ") Single step evaluated: " + obj + DISP
     COLOR.STACK
@@ -45,6 +50,7 @@
     #0 IFTE
 
     (Show our calls, if any.)
+    core LEN
     ::
       (Now, for each call we're going to show, make an abbreviated printable
        version of each code block.)

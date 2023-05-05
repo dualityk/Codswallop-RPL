@@ -66,18 +66,7 @@ def makebinprocs():
       nam = nam.next
     rt.Stack.push(n)
   bins += [['dir', x]]
-  
-  # Online help.
-  def x(rt):
-    sym = rt.Stack.pop()
-    obj = rt.rcl(sym.data)
-    if obj:
-      obj.doc(rt)
-    else:
-      rt.Stack.push(sym)
-      rt.ded('Nonexistent symbols have nonexistent documentation')
-  bins += [['doc', x]]
-  
+    
   # Object type.
   def x(rt):
     rt.Stack.push(rtypes.typeint(rt.Stack.pop().typenum))

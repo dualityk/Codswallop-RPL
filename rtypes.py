@@ -103,15 +103,6 @@ class objarchetype:
   # encountered in a program by the runtime.
   def rteval(self, runtime):
     runtime.Stack.push(self)
-    
-  # Self-documentation facility.
-  def doc(self, runtime):
-    if self.typenum:
-      print('Fundamental data type',self.typenum,'('+self.typename+')')
-    else:
-      print('Unregistered data type '+self.typename)
-    if self.hint:
-      print(self.hint)
 
 
 # Binary call, the barest wrapper around a Python function.
@@ -583,21 +574,6 @@ class typebin(objarchetype):
       self.data = data
     self.dispatches = [self.dispatch]
     self.rteval = self.eval
-    
-  # More comprehensive documentation provided for built-ins based on the
-  # standard argument checking and dispatch.
-  def doc(self, runtime):
-    if self.hint: print(self.hint+'\n')
-    print(self.data,'is looking for',self.argct,'arguments.',\
-    ' For example:'*(len(self.argck)>0))
-    for i in range(len(self.argck)):
-      print('Stack configuration '+str(i)+':')
-      for j in range(self.argct):
-        if self.argck[i][j] < len(runtime.Types.n):
-          name = runtime.Types.n[self.argck[i][j]]
-        else:
-          name = 'Unregistered, imaginary type #'+str(self.argck[i][j])
-        print('  Line '+str(self.argct-j)+': '+name)
   
   def eval(self, runtime):
     # Preemptively claim responsibility for errors.

@@ -60,13 +60,6 @@ I*.>bin '>BIN' I*.sto
 "Return a list of all names in a directory."
 'DIR' >BIN 'DIR' STO
 
-(Document an object.)
-{ { `I*.doc `Types.Symbol } 
-  { `I*.doc `Types.Function } }
-#1
-"Display information about a symbol, along with any extra hints about its purpose."
-'DOC' >BIN 'DOC' STO
-
 (Object type.)
 { { `I*.type `Types.Any } }
 #1

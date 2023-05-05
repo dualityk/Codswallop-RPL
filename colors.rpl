@@ -178,6 +178,57 @@ COLOR.csi "1m" + 'COLOR.ANSIBRITE' STO
 {} STATIC
 'COLOR.STACK' STO
 
+(Just a quick way to highlight a string.)
+:: COLOR.ANSIBRITE SWAP + COLOR.ANSINORMAL + ;
+'COLOR.HILITE' STO
+
+(Document things... in color.)
+{ {
+:: OBJ>
+  ::
+    "What we have here is a builtin which calls itself "
+    'sym' RCL COLOR.HILITE + ":" + DISP
+    "" DISP hint DISP "" DISP
+    "It takes " argcount + " argument" +
+    #1 argcount != :: "s" + ; IFT
+
+    (Only finish our sentence about options if there are any.)
+    argcount
+    :: 
+      ", and there " +
+      arglist LEN DUP #1 ==
+      :: DROP "is one way to call it." ;
+      :: " ways to call it." + "are " SWAP + ;
+      IFTE + DISP
+      "" DISP arglist
+      :: "Stack configuration " index + ":" + COLOR.HILITE DISP 
+        argcount RIGHT 
+        ::
+          (For each argument, get the name of the type...)
+          DUP Types.n SWAP GET
+          (The color of the type...)
+          SWAP COLOR.TYPES SWAP GET
+          (And make a pretty string.)
+          SWAP + COLOR.ANSINORMAL +
+          "  Line " argcount index - + ": " + 
+          SWAP + DISP
+        ; FOREACH DROP ;
+      FOREACH DROP ;
+    (Otherwise, if there are no arguments, finish our sentence here.)
+    :: "." + DISP ;
+    IFTE ;
+  { sym hint argcount arglist } LOCAL ;
+`Types.Builtin }
+{ :: DUP EXISTS
+    :: DUP " is a symbol, following it..." + DISP RCL DOC ;
+    :: " symbolizes nothing, but it sure is nice to look at" + DISP ;
+    IFTE ;
+  `Types.Symbol } }
+{ DOC } STATIC
+#1
+"Document the various possibilities of a builtin function."
+'DOC' >BIN 'DOC' STO
+
 #78 'COLOR.margin' STO (Default screen width)
  #8 'COLOR.stacklimit' STO (Default stack printing limit)
 

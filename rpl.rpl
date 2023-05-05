@@ -10,9 +10,11 @@
 'oldREP' STO)
 
 :: (HAS: See if a value exists in a list)
+  (First, defang a symbol by putting it in a tag.)
+  'tag' >TAG
   SWAP DUP LEN #0 (Grab its length, and set our index.)
   :: idx length <
-    :: 'list' RCL idx GET 'term' RCL ==
+    :: 'list' RCL idx GET term RCL ==
       #1
       :: idx #1 + 'idx' STO loop ;
       IFTE ;
@@ -21,6 +23,8 @@
   DUP { loop idx length list term } LOCAL ;
 'HAS' STO
 
+#0 DEDCONT 
+
 :: (STATIC: Dereference all builtins from a list, except those in the
 exception table.)
   SWAP DUP LEN #0
@@ -28,8 +32,8 @@ exception table.)
     :: 'list' RCL DUP idx GET DUP TYPE (List, list item, item type.)
       DUP Types.List == SWAP Types.Code == OR (If it's a composite type, recurse.)
       :: exceptions STATIC idx PUT 'list' STO ;
-      :: DUP SWAP TYPE Types.Function == (If it's an unquoted symbol...)
-        :: DUP DUP exceptions SWAP >STR HAS NOT 
+      :: DUP TYPE Types.Function == (If it's an unquoted symbol...)
+        :: DUP DUP exceptions SWAP HAS NOT 
            (Make sure it's not an exception.)
            SWAP EXISTS AND (And that it's real.)
           :: RCL DUP TYPE DUP Types.Builtin == SWAP Types.Internal == OR
@@ -46,6 +50,12 @@ exception table.)
     IFTE ;
   DUP { loop idx length list exceptions } LOCAL ;
 DUP 'STATIC' STO {} STATIC 'STATIC' STO (Bootstrap our static STATIC.)
+
+
+(Now, turn STATIC into a real boy.)
+{ { STATIC `Types.List `Types.List } { STATIC `Types.Code `Types.List } }
+#2 "Except for the symbols in the list on line 1, dereference all builtins in the program on line 2."
+'STATIC' >BIN 'STATIC' STO
 
 'HAS' RCL {} STATIC 'HAS' STO (And our static HAS.)
 
@@ -137,6 +147,34 @@ to store itself in its own local variable, and goes to town.)
 :: (PAUSE: Press enter to continue.)
   "(Enter) " PROMPT DROP ;
 'PAUSE' STO
+
+(FOREACH: For each item in list or code, push it to the stack and evaluate 
+ a thing. For example, 0 { 1 2 3 } '+' FOREACH evaluates 0 1 + 2 + 3 +.
+ An update callback will store an item back to that spot in the list.)
+
+:: SWAP DUP LEN
+  :: '_list' RCL SWAP index PUT '_list' STO ;
+  :: '_list' RCL
+    index #1 + DUP 'index' STO
+    _length >=
+    :: BAIL ; IFT 
+    index GET _evaluator
+    SELF EVAL ;
+  { update _length _list _evaluator :index:#-1 } LOCAL 
+  (This comment prevents tail call optimization, which can cause unexpected
+   behavior if the evaluator code recurses.) ;
+{} STATIC
+'FOREACH' STO
+
+(Now make it a builtin.)
+{ { FOREACH `Types.List `Types.Any }
+  { FOREACH `Types.Code `Types.Any } }
+#2
+"For each element of code or a list in line 2, place the element on the
+stack and evaluate line 1.  'update' can be called to store a new element
+in that location.  Returns the code or list."
+'FOREACH'
+>BIN 'FOREACH' STO
 
 (Interactive loop...)
 ::
