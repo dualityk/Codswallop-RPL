@@ -268,15 +268,14 @@ class typesym(objarchetype):
         token.stop = True
   
   def __init__(self, x):
-    #self.data = str(x)
     self.data = x
   def unparse(self, maxdepth=None):
     return "'"+symtostr(self.data)+"'"
   # Evaluating a symbol attempts to retrieve it by name and evaluate that.
   def eval(self, runtime):
     x = runtime.rcl(self.data)
-    if x != None:
-      x.eval(runtime)
+    if x is not None:
+      return x.eval
     else:
       runtime.Caller = 'this symbol'
       oursym = symtostr(self.data)
@@ -590,10 +589,10 @@ class typebin(objarchetype):
         match = True
         for j in range(self.argct):
           if self.argck[i][j] and self.argck[i][j] != wegot[j]: match = False
-        # Call the first matching line of the dispatch table.
+        # Suggest the runtime call the first matching dispatch.
         if match: 
-          self.dispatches[i].eval(runtime)
-          return
+          return self.dispatches[i].eval
+          
       runtime.ded('There are '+str(len(self.argck))+' ways to call and you tried #'+\
       str(len(self.argck)+1))
 

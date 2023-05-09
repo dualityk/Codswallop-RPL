@@ -131,7 +131,7 @@ def makebinprocs():
   
   # Evaluate.
   def x(rt):
-    rt.Stack.pop().eval(rt)
+    return rt.Stack.pop().eval
   bins += [['eval', x]]
   
   # Swap.
@@ -178,7 +178,7 @@ def makebinprocs():
         if obj == None:
           rt.ded('The parser did not care for your shenanigans')
         else:
-          rtypes.typecode(obj).eval(rt)
+          return rtypes.typecode(obj).eval
     except:
       rt.Stack.push(name)
       rt.ded('The operating system says no')
@@ -245,6 +245,10 @@ def makebinprocs():
         rt.Stack.push(thing)
         rt.Stack.push(tag)
         rt.ded('A valiant effort to reference oneself, thwarted')
+    elif thing is tag:
+      rt.Stack.push(thing)
+      rt.Stack.push(tag)
+      rt.ded('A valiant effort to reference oneself, thwarted')
     else:
       tag.obj = thing
   bins += [['stoto', x]]
@@ -355,21 +359,21 @@ def makebinprocs():
     rt.retcall()
     if len(rt.Calls):
       rt.Calls.pop()
-    rt.Stack.pop().eval(rt)
+    return rt.Stack.pop().eval
   bins += [['beval', x]]
 
   # If-then
   def x(rt):
     th = rt.Stack.pop()
-    if rt.Stack.pop().data: th.eval(rt)
+    if rt.Stack.pop().data: return th.eval
   bins += [['ift', x]]
 
   # If-then-else
   def x(rt):
     el = rt.Stack.pop()
     th = rt.Stack.pop()
-    if rt.Stack.pop().data: th.eval(rt)
-    else: el.eval(rt)
+    if rt.Stack.pop().data: return th.eval
+    else: return el.eval
   bins += [['ifte', x]]
 
 

@@ -6,7 +6,7 @@
        :: DROP COLOR.TYPES Types.List GET "{ ... }" + COLOR.ANSINORMAL + ; }
      { :: DUP TYPE Types.Code == ;
        :: DROP COLOR.TYPES Types.Code GET ":: ... ;" + COLOR.ANSINORMAL + ; }
-     { #1 COLOR.COLOROBJ } }
+     { ELSE COLOR.COLOROBJ } }
    CASE
   :: COLOR.CLEAR "(Depth " + COLOR.ANSIBRITE + depth + COLOR.ANSINORMAL + 
     ") Single step evaluated: " + obj + DISP
@@ -16,10 +16,10 @@
     { { :: "b" == ISDED OR ; :: "SST break" 'DED' BEVAL (bail just from here) ; }
       { :: "s" == ;          REPL }
       { :: "r" == ;          (keep on truckin') }
-      { :: DROP #1 ;         SST } } 
+      { ELSE SST } } 
     KCASE ;
   { obj depth } LOCAL ;
-'STEP' STO
+{} STATIC 'STEP' STO
 
 (Here's a much cleaner error traceback thing too.)
 

@@ -121,42 +121,65 @@ class rplruntime:
       # Fetch next object from current clutches.
       line = self.Calls[len(self.Calls)-1]
       nextobj = line[CALL_CODE].data[line[CALL_IP]]
-          
+      nexteval = nextobj.rteval
+
       # Increment IP for this context.
       line[CALL_IP] += 1
-
+      
       # If we're in debug mode, call STEP after each thing we actually
       # evaluate; otherwise, just evaluate.
       if self.SST:
-        nextobj.rteval(self)
         # First we have to see if there even is a single stepper.
         ourstepper = self.rcl(['STEP'])
-        if ourstepper != None:
-          # We have to do this two-step to make sure NOSST is honored.
-          if self.SST:
-            # And we clear SST so the single stepper can run unimpeded;
-            # it'll set SST again on its own if it wants to keep stepping.
-            self.SST = False
-            self.Stack.push(typeint(len(self.Calls)))
-            self.Stack.push(nextobj)
-            ourstepper.eval(self)
+        
+        # Then we click one forward.
+        self.evalone(nexteval)
+        
+        # Now see if we're still single stepping.
+        if self.SST and ourstepper != None:
+          # And we clear SST so the single stepper can run unimpeded;
+          # it'll set SST again on its own if it wants to keep stepping.
+          self.SST = False
+          self.Stack.push(typeint(len(self.Calls)))
+          self.Stack.push(nextobj)
+          ourstepper.eval(self)
         else:
           # Silently return to quick evaluation if there's no STEP.
           self.SST = False
-      else:
-        # In the normal case, just evaluate the object.  "rteval" rather than
-        # eval can producs slightly different behavior -- for example, quoted
-        # symbols and programs are pushed rather than executed.
-        nextobj.rteval(self)
+      else:      
+        # Some objects want to evaluate each other.  Instead of recursing,
+        # they'll return the next object they want evaluated, and it'll be
+        # taken care of in this loop.  This keeps us out of the Python call
+        # stack somewhat and makes it possible for the user to break out of
+        # certain corners they may creatively paint themselves into.
+        while nexteval is not None:
+          nexteval = nexteval(self)
+          
+          # Make sure we didn't die.  If we did, at least stop hitting ourselves.
+          if self.Break:
+            nexteval = None
+            if self.BreakSST:
+              self.SST = True
+              self.Break = False
+            else:
+              self.Caller = 'a higher power'
+              self.ded('Break')
 
-      # Make sure we didn't die.
+  # Evaluate one thing until it returns None. rs()' single stepper uses this,
+  # and it's identical to the free-running runtime above.  It might be useful
+  # for internals in the future.  Thing should be object.eval or object.rteval.
+  def evalone(self, thing):
+    while thing is not None:
+      thing = thing(self)
       if self.Break:
+        nexteval = None
         if self.BreakSST:
           self.SST = True
           self.Break = False
         else:
           self.Caller = 'a higher power'
           self.ded('Break')
+
 
   # Queue a new context.  This will add a line to the call stack unless there
   # is a tail call to optimize.
@@ -214,25 +237,6 @@ class rplruntime:
       return False
 
 
-  # Return until there is a context with stuff left in it (or nothing left).
-  # This one looped, but I am pretty sure it didn't have to.
-  def origretcall(self):
-    while len(self.Calls):
-      # If we're at the end of the list, drop it.  
-      line = self.Calls[len(self.Calls)-1]
-      if line[CALL_IP] == len(line[CALL_CODE].data):
-        self.Calls.pop()
-        # Update our first object pointer.
-        if len(self.Calls):
-          self.firstobj = self.Calls[len(self.Calls)-1][CALL_CONTEXT]
-        else:
-          self.firstobj = self.firstglobalobj
-      else:
-        # There are more things to evaluate.
-        return True
-    # Call stack is empty.
-    return False
-
   # #####################################################
   # Hierarchical named store routines.
 
@@ -243,42 +247,8 @@ class rplruntime:
       obj = self.lastobj
     # Nulltag is a null-named tag containing a null remark.
     return typedir(self.nulltag, obj)
-
-  # Fetch a matching directory entry from a given start point.
-  #def fetchobj(self, name, start):
-  #  while True:
-  #    if start.data == name and len(name):
-  #      return start
-  #    if start.nextobj is self.lastobj:
-  #      return
-  #    else:
-  #      start = start.nextobj
-
-  # Dig through the dots to find the top of the innermost directory.
-  #def fetchdir(self, name, start):
-  #  name = name.split('.',1)
-  #  if len(name)>1:
-  #    #dirtype = self.Types.id['Directory']
-  #    trying = self.fetchobj(name[0], start)
-  #    if trying != None and trying.obj.typenum == self.dirtype:
-  #      # If we found the directory, recurse.
-  #      return self.fetchdir(name[1], trying.obj)
-  #    else:
-  #      # If we didn't find it, or it wasn't a directory, sad times.
-  #      return name[0], None
-  #  else:
-  #    # If there wasn't a dot in the name, quick times.
-  #    return name[0], start
-      
-  # Try to find an object.
-  #def rcl(self, name):
-  #  ok = self.fetchdir(name, self.firstobj)
-  #  if ok[1] != None:
-  #    obj = self.fetchobj(ok[0], ok[1])
-  #    if obj != None:
-  #      return obj.obj
   
-  # Try to find an object, better.
+  # Try to find an object.
   def rcl(self, namelist):
     # Start from the top.
     current = self.firstobj
@@ -316,29 +286,7 @@ class rplruntime:
       else:
         return
 
-  # Store object to nearest context which contains that name, or at the end
-  # otherwise.
-  #def osto(self, name, value):
-  #  trying = self.fetchdir(name, self.firstobj)
-  #  if trying[1] == None:
-  #    return False
-  #  name = trying[0]
-  #  trying = trying[1]
-  #  while True:
-  #    # Update object pointer in current name if there is one.
-  #    if trying.data == name:
-  #      trying.obj = value
-  #      return True
-  #    # If we got to the end, push the null object out a link and insert a
-  #    # new directory object with our key and value.
-  #    if trying.nextobj is self.lastobj:
-  #      newobj = typedir(name, value, trying.nextobj)
-  #      trying.nextobj = newobj
-  #      return True
-  #    else:
-  #      trying = trying.nextobj
-
-  # Try to store an object, better.
+  # Try to store an object.
   def sto(self, namelist, value):
     # Counter
     counter = len(namelist)-1
@@ -414,26 +362,6 @@ class rplruntime:
           symbol = self.rcl(symbol.data)
       else:
         return False
-
-  # Remove the nearest named object.
-  #def orm(self, name):
-  #  # First get to the top of the list in question.
-  #  trying = self.fetchdir(name, self.firstobj)
-  #  if trying[1] == None:
-  #    return False
-  #  name = trying[0]
-  #  lastobj = trying[1]
-  #  trying = trying[1].nextobj
-  #  
-  #  while not trying is self.lastobj:
-  #    if trying.data == name:
-  #      lastobj.nextobj = trying.nextobj
-  #      return True
-  #    # If we're still looking, keep track of our last object and advance to
-  #    # the next link.
-  #    lastobj = trying
-  #    trying = trying.nextobj
-  #  return False
 
   def rm(self, namelist):
     # Start from the top.
