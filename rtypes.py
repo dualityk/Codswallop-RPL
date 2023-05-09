@@ -50,7 +50,7 @@ class rpltypes:
     # containing their matching type numbers, as well as a list 'n'
     # with all the names for given numbers.
     # We do have to reverse the reverse list since parsetypes is backwards.
-    runtime.sto(['Types'], runtime.firstdir(runtime.lastobj))
+    runtime.sto(['Types'], runtime.firstdir())
     reverse = []
     runtime.sto(['Types','Any'],typeint(0))
     for i in self.parsetypes:
@@ -109,7 +109,6 @@ class objarchetype:
 class typebinproc(objarchetype):
   typename = 'Internal'
   data = '(internal)'
-  hint = 'A mystery; an enigma; a crash lying in wait...'
   def __init__(self, procedure, hint=None):
     self.eval = procedure
     self.rteval = procedure
@@ -553,8 +552,7 @@ class typecode(typelst):
 # is done.
 
 # For legibility purposes when printing code, data equals the name of the
-# function.  This is also used to populate the global store without having
-# to name the function twice.
+# function.
 
 class typebin(objarchetype):
   typename = 'Builtin'
@@ -570,9 +568,6 @@ class typebin(objarchetype):
   # On construction, build a dispatch table based upon argck and our
   # list of hooks.
   def __init__(self, data=None):
-    if data:
-      self.data = data
-    self.dispatches = [self.dispatch]
     self.rteval = self.eval
   
   def eval(self, runtime):
@@ -584,32 +579,24 @@ class typebin(objarchetype):
       runtime.ded('How about '+str(self.argct)+' arguments instead of '+\
           str(len(runtime.Stack))+'?')
     else:
-      # There's enough arguments, so, do we care what they are?
-      if len(self.argck):
-        # Yes: then check each line of 'argck' and dispatch if args match 
-        # what we have.
-        wegot = []
-        for i in range(len(runtime.Stack.data)-self.argct, 
-                       len(runtime.Stack.data)):
-          wegot += [runtime.Stack.data[i].typenum]
+      # We do have enough args, so what are they?
+      wegot = []
+      for i in range(len(runtime.Stack.data)-self.argct, 
+                     len(runtime.Stack.data)):
+        wegot += [runtime.Stack.data[i].typenum]
 
-        for i in range(len(self.argck)):
-          match = True
-          for j in range(self.argct):
-            if self.argck[i][j] and self.argck[i][j] != wegot[j]: match = False
-          # Call the first matching line of the dispatch table.
-          if match: 
-            self.dispatches[i].eval(runtime)
-            return
-        runtime.ded('There are '+str(len(self.argck))+' ways to call and you tried #'+\
-        str(len(self.argck)+1))
-      else:
-        # No: hit it.
-        self.dispatches[0].eval(runtime)
-  
-  # Default dispatch does nothing.
-  def dispatch(self):
-    pass
+      for i in range(len(self.argck)):
+        # Check each argument to match type number.  0 will match any type.
+        match = True
+        for j in range(self.argct):
+          if self.argck[i][j] and self.argck[i][j] != wegot[j]: match = False
+        # Call the first matching line of the dispatch table.
+        if match: 
+          self.dispatches[i].eval(runtime)
+          return
+      runtime.ded('There are '+str(len(self.argck))+' ways to call and you tried #'+\
+      str(len(self.argck)+1))
+
 
 # Prepare an rpltypes object to hand to the runtime, containing our basic
 # types.

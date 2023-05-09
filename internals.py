@@ -506,70 +506,28 @@ def makebinprocs():
       rt.Stack.push(rtypes.typetag(name.data[0],obj))
   bins += [['>tag', x]]
   
-  # to builtin
+  # to builtin (add dispatch table later with binhook)
   def x(rt):
-    def bailout(table, argct, hint, name):
-      rt.Stack.push(table)
-      rt.Stack.push(argct)
-      rt.Stack.push(hint)
-      rt.Stack.push(name)
     newbin = rtypes.typebin()
-    newdata = rt.Stack.pop()
-    newhint = rt.Stack.pop()
-    newargct = rt.Stack.pop()
-    patches = rt.Stack.pop()
-    newbin.data = newdata.data[0]  # Don't let user get fresh with dotted names
-    newbin.hint = newhint.data
+    oldstack = rt.Stack.data[:]
+    # Don't let user get fresh with dotted names
+    newbin.data = rt.Stack.pop().data[0]
+    newbin.hint = rt.Stack.pop().data
+    newbin.argct = rt.Stack.pop().data
     newbin.dispatches = []
-    newbin.argct = newargct.data
     newbin.argck = [] 
     if newbin.argct < 0:
+      rt.Stack.data = oldstack
       rt.ded("It's hard to win a negative argument")
-      bailout(patches, newargct, newhint, newdata)
       return
-    # Try to add a new dispatch line for each one the user wants.
-    for i in patches.data:
-      if i.typenum == rt.Types.id['List']:
-        if len(i)>newargct.data:
-          # If we're handed an unquoted symbol, try to recall it first.
-          if i.data[0].typenum == rt.Types.id['Function'] or i.data[0].typenum == rt.Types.id['Symbol']:
-            tryin = rt.rcl(i.data[0].data)
-            if tryin is not None:
-              newbin.dispatches.append(tryin)
-            else:
-              newbin.dispatches.append(i.data[0])
-          else:
-            newbin.dispatches.append(i.data[0])
-          argline = []
-          for j in range(newbin.argct):
-            if i.data[j+1].typenum != rt.Types.id['Integer'] or not i.data[j+1].typenum in rt.Types.id.values():
-              bailout(patches, newargct, newhint, newdata)
-              rt.ded("Type numbers have to be a number which represents a type")
-              return
-            else:          
-              argline.append(i.data[j+1].data)
-          newbin.argck.append(argline)
-        else:
-          bailout(patches, newargct, newhint, newdata)
-          rt.ded("Next time try including the number of arguments you asked for")
-          return
-      else:
-        bailout(patches, newargct, newhint, newdata)
-        rt.ded("If you want a built-in, you should consider a less broken dispatch table")
-        return
-    # If the user sent us a null dispatch table, make it a NOP.
-    if not len(newbin.dispatches):
-      newbin.dispatches=[newbin.dispatch]
-    # Assuming we got this far, we made it:
     rt.Stack.push(newbin)
   bins += [['>bin', x]]
   
-  # Break apart a builtin.
+  # Break apart a builtin.  Removal is the opposite of installation.
   def x(rt):
     ourbin = rt.Stack.pop()
     table = rtypes.typelst([])
     for i in range(len(ourbin.argck)):
-      #table.push(rtypes.typelst([ourbin.dispatches[i]]+ourbin.argck[i]))
       line = [ourbin.dispatches[i]]
       for j in range(ourbin.argct):
         line += [rtypes.typeint(ourbin.argck[i][j])]
@@ -579,6 +537,67 @@ def makebinprocs():
     rt.Stack.push(rtypes.typestr(ourbin.hint))
     rt.Stack.push(rtypes.typesym([ourbin.data]))
   bins += [['bin>', x]]
+
+  # Hook new dispatch lines into an extant builtin.
+  def x(rt):
+    oldstack = rt.Stack.data[:]
+    bin = rt.Stack.pop()
+    patches = rt.Stack.pop()
+    
+    # Try to add a new dispatch line for each one the user wants.
+    newdispatches = []
+    newargck = []
+    for i in patches.data:
+      if i.typenum == rt.Types.id['List']:
+        if len(i)>bin.argct:
+          # If we're handed a symbol, try to recall it first.  This is the
+          # object we'll dispatch to.
+          ourdispatch = i.data[0]
+          if ourdispatch.typenum == rt.Types.id['Function'] or\
+             ourdispatch.typenum == rt.Types.id['Symbol']:
+            tryin = rt.rcl(ourdispatch.data)
+            if tryin is not None:
+              ourdispatch = tryin
+          newdispatches.append(ourdispatch)
+          
+          # Then try to turn our arguments into an argck line.
+          argline = []
+          for j in range(bin.argct):
+            ourarg = i.data[j+1]
+
+            # Here also, if we find a symbol, try to recall it.  This will
+            # reduce an otherwise mandatory two-step when making builtins of
+            # custom types.
+            if ourarg.typenum == rt.Types.id['Function'] or\
+               ourarg.typenum == rt.Types.id['Symbol']:
+              tryin = rt.rcl(ourarg.data)
+              if tryin is not None:
+                ourarg = tryin
+                
+            if ourarg.typenum != rt.Types.id['Integer'] or\
+               not ourarg.typenum in rt.Types.id.values():
+              rt.Stack.data = oldstack
+              rt.ded("Type numbers have to be a number which represents a type")
+              return
+            else:          
+              argline.append(ourarg.data)
+          newargck.append(argline)
+        else:
+          rt.Stack.data = oldstack
+          rt.ded("Next time try including the number of arguments you asked for")
+          return
+      else:
+        rt.Stack.data = oldstack
+        rt.ded("If you want a built-in, you should consider a less broken dispatch table")
+        return
+    # Assuming we got this far, we made it, so put our new dispatches to the
+    # front of the line, and return the builtin:
+    bin.argck = newargck + bin.argck
+    bin.dispatches = newdispatches + bin.dispatches
+    
+    rt.Stack.push(bin)
+  bins += [['binhook', x]]
+
 
   # Make empty directory
   def x(rt):

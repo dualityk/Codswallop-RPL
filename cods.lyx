@@ -84,7 +84,7 @@ ian Butler
 \end_layout
 
 \begin_layout Date
-April 2023
+May 2023
 \end_layout
 
 \begin_layout Part
@@ -4104,7 +4104,7 @@ Prepare a built-in object.
 \end_layout
 
 \begin_layout LyX-Code
-{ { :: code ; object-type (object-type...) }
+{ { dispatch-object object-type (object-type...) }
 \end_layout
 
 \begin_layout LyX-Code
@@ -4126,6 +4126,9 @@ where the code to execute is the first object of each sub-list, and the
  #0 if any type is acceptable.) When called, a built-in tests the stack arguments
  and dispatches to the first matching line of this table.
  Any objects after the argument types are ignored, and can be used for comments.
+ If the dispatch object is a symbol, it is recalled by >BIN.
+ Symbols evaluating to valid integers are also permitted for object-type
+ fields, so for example, Types.String is an acceptable object type.
 \end_layout
 
 \begin_layout Standard
@@ -6486,6 +6489,120 @@ Integer
 
 \begin_layout Plain Layout
 Boolean result
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph*
+HOOK
+\end_layout
+
+\begin_layout Standard
+Modify a built-in object by adding new lines to its dispatch table.
+ The table structure is identical to that used by >BIN, and is prepended
+ to the table already in use.
+ The built-in is modified in place rather than issuing a new object, and
+ it is also returned to the stack.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="2" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+List
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Dispatch table
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Built-in
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Object to modify
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+ ⇒ 
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Built-in
 \end_layout
 
 \end_inset

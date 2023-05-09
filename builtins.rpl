@@ -14,13 +14,21 @@
 
 (To make things easier, we built >BIN and STO first.)
 (Make a builtin)
-{ { `I*.>bin `Types.List `Types.Integer `Types.String `Types.Symbol } }
+
+{ { :: `I*.>bin `I*.binhook ; Types.List Types.Integer Types.String Types.Symbol } }
 #4
 "Build a new built-in from a hint string, symbol name, an argument count,
 and a dispatch table in the form of:
   { { code objtype1 objtype2 ... } ... }"
 '>BIN'
-I*.>bin '>BIN' I*.sto
+I*.>bin I*.binhook '>BIN' I*.sto
+
+(Hook a builtin)
+{ { I*.binhook Types.List Types.Builtin } }
+#2
+"Hook new dispatch lines into an extant builtin, in the same fashion as >BIN."
+'HOOK'
+>BIN 'HOOK' I*.sto
 
 (Store)
 { { `I*.sto `Types.Any `Types.Symbol }
@@ -30,6 +38,8 @@ I*.>bin '>BIN' I*.sto
 "Write an object into the named store, either to a local variable if it exists, or to the main store (or into a tag)."
 'STO'
 >BIN 'STO' I*.sto
+
+
 
 { { `I*.>tag `Types.Any `Types.Symbol }
   { `I*.>tag `Types.Any `Types.Function } }
