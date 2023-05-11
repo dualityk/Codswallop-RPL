@@ -35,6 +35,8 @@ class rpltypes:
     self.parsetypes = []
     # Finally, reference to the object class itself.
     self.prototype = {}
+    self.usrproto = {}
+
   def register(self, obj):
     newnumber = len(self.n)
     # Put new objects at the beginning of the parse list.  This way,
@@ -42,9 +44,18 @@ class rpltypes:
     self.parsetypes = [obj] + self.parsetypes
     self.id[obj.typename] = newnumber
     self.n += [obj.typename]
-    self.prototype[obj.typename] = obj
     obj.typenum = newnumber
-    
+    self.prototype[obj.typename] = obj
+       
+  # Register a new user-created type.
+  def registerusr(self, obj):
+    newnumber = len(self.n)
+    self.id[obj.typename] = newnumber
+    self.n += [obj.typename]
+    obj.typenum = newnumber
+    self.prototype[obj.typename] = obj
+    self.usrproto[obj.typename] = obj
+      
   def updatestore(self, runtime):
     # Create a new Types directory and populate it with type names
     # containing their matching type numbers, as well as a list 'n'
@@ -56,10 +67,17 @@ class rpltypes:
     for i in self.parsetypes:
       runtime.sto(['Types',i.typename], typeint(i.typenum))
       reverse = [typestr(i.typename)]+reverse
+    for i in self.usrproto.values():
+      runtime.sto(['Types',i.typename], typeint(i.typenum))
+      reverse += [typestr(i.typename)]
     reverse = [typestr('Any')]+reverse
     runtime.sto(['Types','n'], typelst(reverse))
-  
-  
+    if len(self.usrproto):
+      runtime.sto(['Types','Proto'], runtime.firstdir())
+      for i in self.usrproto:
+        runtime.sto(['Types','Proto',i], self.usrproto[i])
+
+
 # Archetypal object.  An RPL typed object always contains a type number
 # and the actual data.  It will also, at minimum, have these methods.
 class objarchetype:
@@ -366,6 +384,32 @@ class typedir(objarchetype):
       self.next = self
     else:
       self.next = nextobj
+   
+  # Duplicating a directory is trickier, because all entries and tags
+  # need to be copied.  This was so hairy I had to take a shower to make it.
+  def dup(self, depth=CPDEPTH):
+    if depth:
+      # We have to hang onto 'ourcopy' because that's what we're returning.
+      # Rest is our new directory entry of interest, and current is the old
+      # structure we're following.
+      ourcopy = typedir(self.tag.dup(), self.next)
+      rest = ourcopy
+      current = self
+      # Lastobjs point to themselves, so we only follow til we get to a self-ref.
+      while current.next is not current.next.next:
+        # Each new 'rest' initially points back to the original list, retaining
+        # our global lastobj when we drop out of the loop.
+        current = current.next
+        rest.next = typedir(rest.next.tag.dup(), current.next)
+        rest = rest.next
+        # We have to recurse to catch subdirectories, but only to a point.
+        if rest.tag.obj.typenum == self.typenum:
+          rest.tag.obj = rest.tag.obj.dup(depth-1)
+      return ourcopy
+    else:
+      # If we're out of recursion depth, silently return the original.
+      return self
+    
   def unparse(self, maxdepth=None):
     return "[directory]"
 
@@ -375,7 +419,8 @@ class typedir(objarchetype):
 # 'obj' is any old thing, but has to be an RPL type.
 # Tags are expressly mutable and can be used to pass a reference
 # when that's useful, such as for closures, or when the original
-# name may be covered by a local variable.
+# name may be covered by a local variable.  It's also the basis
+# of the user type scheme.
 class typetag(objarchetype):
   typename = 'Tag'
   
@@ -384,7 +429,11 @@ class typetag(objarchetype):
     self.obj = obj
 
   def dup(self):
-    return copy.copy(self)
+    # Make a copy of the object we contain, also.
+    newtag = typetag(self.name, self.obj.dup())
+    # And save our type number, because it may have changed.
+    newtag.typenum = self.typenum
+    return newtag
     
   def parse(token):    
     # Tags will look like :name:thing, so we have to make sure we're
@@ -559,8 +608,10 @@ class typebin(objarchetype):
   data = 'NOP'
   hint = 'A very lazy person has declined to document this built-in.'
 
-  # A list of possible stack configurations (default, any).
+  # A list of possible stack configurations.
   argck = []
+  # A matching list of dispatch functions.
+  dispatches = []
   # Number of expected arguments.
   argct = 0
   
@@ -569,6 +620,16 @@ class typebin(objarchetype):
   def __init__(self, data=None):
     self.rteval = self.eval
   
+  # Conceptually useful for saving a snapshot of a builtin before hooking it.
+  def dup(self):
+    newbin = typebin()
+    newbin.data = self.data
+    newbin.argck = self.argck[:]
+    newbin.dispatches = self.dispatches[:]
+    newbin.argct = self.argct
+    newbin.hint = self.hint
+    return newbin
+    
   def eval(self, runtime):
     # Preemptively claim responsibility for errors.
     runtime.Caller = self.data
@@ -595,6 +656,7 @@ class typebin(objarchetype):
           
       runtime.ded('There are '+str(len(self.argck))+' ways to call and you tried #'+\
       str(len(self.argck)+1))
+  
 
 
 # Prepare an rpltypes object to hand to the runtime, containing our basic

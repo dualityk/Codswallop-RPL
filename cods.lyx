@@ -1141,19 +1141,31 @@ You will probably make a lot of mistakes.
 \begin_inset Newline newline
 \end_inset
 
-Your plans to turn words into actions have fallen short.
-\begin_inset Newline newline
-\end_inset
-
-
-\begin_inset Newline newline
-\end_inset
-
-In particular, the string case says:
+Your words fail to become actions.
 \end_layout
 
 \begin_layout LyX-Code
-End of string before end of string
+
+\end_layout
+
+\begin_layout LyX-Code
+Stopped on line 1, position 4: 
+\end_layout
+
+\begin_layout LyX-Code
+:: "Hello, world!' DISP ;
+\end_layout
+
+\begin_layout LyX-Code
+   ↑ 
+\end_layout
+
+\begin_layout LyX-Code
+In particular: Strings don't just start with quotes
+\end_layout
+
+\begin_layout LyX-Code
+
 \end_layout
 
 \begin_layout LyX-Code
@@ -1165,9 +1177,8 @@ Stack: { }
 \end_layout
 
 \begin_layout Standard
-If the parser fails to make heads or tails of your input, it will unhelpfully
- discard it entirely, and it is currently not very good at telling you exactly
- where it's failed.
+If the parser fails to make heads or tails of your input, it will make a
+ solid effort to tell you exactly where it's failed.
  On the other hand, the interpreter itself will provide a comprehensive
  traceback of exactly where an error occurred, and why:
 \end_layout
@@ -1522,7 +1533,8 @@ else
 \end_inset
 
  case out of your last entry by making sure it always returns a nonzero
- result: 
+ result (or you can use ELSE for your final test case, which is a local
+ variable which will do the same thing): 
 \end_layout
 
 \begin_layout LyX-Code
@@ -1708,10 +1720,6 @@ You have played
 \end_inset
 
  SST + DISP
-\end_layout
-
-\begin_layout LyX-Code
-Single step mode is True 
 \end_layout
 
 \begin_layout LyX-Code
@@ -2494,7 +2502,7 @@ Stack: { :: RND x * 1 + >INT RND x * 1 + >INT x #2 + DUP 'x' STO #12 < ;
 And in this case use REP to execute our synthesized code.
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 A study of types
 \end_layout
 
@@ -2515,42 +2523,352 @@ Integer
 \end_inset
 
 .
+ Prototypical objects for user types are in Types.Proto, when used.
+\end_layout
+
+\begin_layout Subsubsection
+Registering a new type
 \end_layout
 
 \begin_layout Standard
-When building a builtin programmatically, it can be useful and much more
- legible to use the parser's ` shorthand to recall type numbers while they're
- being parsed.
- For example, an input of
-\end_layout
-
-\begin_layout LyX-Code
-{ :: 
+Any object can be used as a prototype for a user-defined type.
+ When registered with >TYPE, the prototype will be turned into a new object
+ type with its own name and type number.
+ For example, to make a counter which contains an integer, you could register
+ a new Counter type which contains one.
+ The only additional information needed is an internal name for the data.
+ 
 \begin_inset Quotes eld
 \end_inset
 
-Ignoring an integer
+self
 \begin_inset Quotes erd
 \end_inset
 
- DISP DROP ; `Types.Integer }
+ is a good choice:
+\end_layout
+
+\begin_layout LyX-Code
+:: #1 'self' 'Counter' >TYPE
 \end_layout
 
 \begin_layout Standard
-will retrieve Types.Integer immediately during parsing and (for purposes
- of this example) yield
+Registering a new type will make its type number available as Types.Counter
+ and its name available in Types.n, just as all other objects.
+ The prototype object is stored in Types.Proto.Counter, with the default value.
+ To make a new object of a user type, it is sufficient to make a copy of
+ the prototype object.
+ By default, a user type will appear as a tag:
 \end_layout
 
 \begin_layout LyX-Code
-{ :: 
+:: (Make a new counter.) Types.Proto.Counter CP
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { :self: #1 }
+\end_layout
+
+\begin_layout LyX-Code
+:: 'ourcount' STO
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { }
+\end_layout
+
+\begin_layout Standard
+Even though our new user type here contains only an integer, it is now its
+ own type with full rights and privileges, and thus built-ins will not treat
+ it as an integer.
+ In fact, at the moment, very few functions will interact with it unless
+ they accept any type of object.
+ What our new object needs is some methods.
+\end_layout
+
+\begin_layout Subsubsection
+Making a method
+\end_layout
+
+\begin_layout Standard
+User type objects have access to METH, which will evaluate a block of method
+ code in a special environment.
+ The object is stored as a local variable with its internal name, and its
+ data can be accessed directly and updated.
+ Anything stored back to it will be retained.
+ For example, to increment our counter by 5:
+\end_layout
+
+\begin_layout LyX-Code
+:: ourcount :: self #5 + 'self' STO ; METH
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { }
+\end_layout
+
+\begin_layout LyX-Code
+:: (Both copies are different...) ourcount Types.Proto.Counter
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { :self: #6 :self: #1 }
+\end_layout
+
+\begin_layout Standard
+Of course, as shown this technique will permit a method to be evaluated
+ against any user type.
+ What we could do instead is make a built-in which accepts our type.
+\end_layout
+
+\begin_layout Subsubsection
+Making a built-in
+\end_layout
+
+\begin_layout Standard
+Built-ins are defined by the number of required arguments, a hint string
+ describing what the command will do, and its name.
+ The name doesn't have to match what the built-in is stored as, but it is
+ what will claim responsibility in case of errors.
+ a There is also a list of ways to call referred to as the dispatch table.
+ For the purposes of this example, we can start by creating a built-in with
+ an empty dispatch table.
+ Of course a full table can be included here just as readily:
+\end_layout
+
+\begin_layout LyX-Code
+:: {} #2 
 \begin_inset Quotes eld
 \end_inset
 
-Ignoring an integer
+Increment a counter by a positive integer.
 \begin_inset Quotes erd
 \end_inset
 
- DISP DROP; #10 }
+ 'inc' >BIN
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { inc }
+\end_layout
+
+\begin_layout LyX-Code
+:: 'inc' STO
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { }
+\end_layout
+
+\begin_layout Standard
+As stored here, inc will always produce an error: if there isn't one item
+ on the stack, it will complain of too few arguments, and if there is an
+ item on the stack, it will proclaim the argument type is incorrect.
+ But additional dispatch lines can be added to this or any built-in after
+ the fact, and so from here, we can make a fully type checked inc which
+ will only work on Counter types.
+\end_layout
+
+\begin_layout Subsubsection
+Getting HOOK on METH
+\end_layout
+
+\begin_layout Standard
+Every line of a built-in's dispatch table consists of an object to evaluate
+ if it matches, followed by zero or more argument types according to how
+ many the built-in has been told to expect (in our case, two: our counter,
+ and an increment value.) HOOK can be used to add lines to the beginning
+ of an extant built-in's dispatch table.
+ The code to do our increment in this example will look something like:
+\end_layout
+
+\begin_layout LyX-Code
+::
+\end_layout
+
+\begin_layout LyX-Code
+  DUP #0 >
+\end_layout
+
+\begin_layout LyX-Code
+  :: SWAP :: self + 'self' STO ; METH ;
+\end_layout
+
+\begin_layout LyX-Code
+  :: 
+\begin_inset Quotes eld
+\end_inset
+
+Increment means 'goes up', dearheart
+\begin_inset Quotes erd
+\end_inset
+
+ DED ;
+\end_layout
+
+\begin_layout LyX-Code
+  IFTE ;
+\end_layout
+
+\begin_layout Standard
+Maybe we thought long and hard about that routine, and carefully wrote it
+ and left it on the stack.
+ That's all right; we can stash it into a local variable and make a dispatch
+ table that way.
+ While we're at it, let's patch up DISP to show a nice version of our counter
+ instead of the clumsy looking tag.
+ HOOK will recall any symbols in the dispatch table, so we can make a nice
+ looking one that will reference all the numeric types and our fancy thing
+ by name:
+\end_layout
+
+\begin_layout LyX-Code
+:: :: { { ourfancything Types.Counter Types.Integer } }
+\backslash
+
+\end_layout
+
+\begin_layout LyX-Code
+..? 'inc' RCL HOOK ; { ourfancything } LOCAL
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { }
+\end_layout
+
+\begin_layout LyX-Code
+:: { { :: :: 
+\backslash
+
+\end_layout
+
+\begin_layout LyX-Code
+..? 
+\begin_inset Quotes eld
+\end_inset
+
+This counter reads: 
+\begin_inset Quotes eld
+\end_inset
+
+ self + DISP ; METH ; Types.Counter } } 
+\backslash
+
+\end_layout
+
+\begin_layout LyX-Code
+..? 'DISP' RCL HOOK
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { }
+\end_layout
+
+\begin_layout Standard
+And from here, why not try them both? Let's bring our counter up to a nice
+ round number and print it:
+\end_layout
+
+\begin_layout LyX-Code
+:: ourcount #10 inc ourcount DISP
+\end_layout
+
+\begin_layout LyX-Code
+This counter reads: 16
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { }
+\end_layout
+
+\begin_layout Standard
+Neither HOOK nor METH attempt to save an adventurous programmer from his
+ or her efforts to create infinite recursions (for example, if that DISP
+ code attempted to call DISP with a Counter instead of a string, it would
+ call itself forever).
+ Such a condition will cause the running code to hang, but you can return
+ to the REPL with ^C.
+\end_layout
+
+\begin_layout Subsubsection
+The documentation is automatic
+\end_layout
+
+\begin_layout Standard
+It's worth noting that because DOC's output is generated upon request, the
+ new hooks and even the new type name appear immediately:
+\end_layout
+
+\begin_layout LyX-Code
+:: 'DISP' DOC
+\end_layout
+
+\begin_layout LyX-Code
+'DISP' is a symbol, following it...
+\end_layout
+
+\begin_layout LyX-Code
+What we have here is a builtin which calls itself 'DISP':
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Print any object in human-readable form to the screen.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+It takes 1 argument, and there are 2 ways to call it.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Stack configuration 0:
+\end_layout
+
+\begin_layout LyX-Code
+  Line 1: Counter
+\end_layout
+
+\begin_layout LyX-Code
+Stack configuration 1:
+\end_layout
+
+\begin_layout LyX-Code
+  Line 1: Any
+\end_layout
+
+\begin_layout Subsubsection
+One more thing
+\end_layout
+
+\begin_layout Standard
+If you need to pass the entire object along from within a method, you can
+ quote and dereference it.
+ From our example:
+\end_layout
+
+\begin_layout LyX-Code
+:: ourcounter :: (Increment by one and return ourselves) self #1 
+\backslash
+
+\end_layout
+
+\begin_layout LyX-Code
+..? + 'self' STO 'self' DEREF ; METH
+\end_layout
+
+\begin_layout LyX-Code
+Stack: { :self: #17 }
 \end_layout
 
 \begin_layout Part
@@ -4128,7 +4446,7 @@ where the code to execute is the first object of each sub-list, and the
  Any objects after the argument types are ignored, and can be used for comments.
  If the dispatch object is a symbol, it is recalled by >BIN.
  Symbols evaluating to valid integers are also permitted for object-type
- fields, so for example, Types.String is an acceptable object type.
+ fields, so for example, the symbol Types.String is an acceptable object-type.
 \end_layout
 
 \begin_layout Standard
@@ -4489,6 +4807,79 @@ CLR
 
 \begin_layout Standard
 Clear both the data and call stacks and return to the first REPL, if any.
+\end_layout
+
+\begin_layout Paragraph*
+CP
+\end_layout
+
+\begin_layout Standard
+Make a new copy of a mutable type, for example creating a duplicate directory
+ tree, or to make an identical new tag, or a built-in prior to modifying
+ it with HOOK:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Source object
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+ ⇒ 
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Copy
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Paragraph*
@@ -6509,8 +6900,8 @@ HOOK
 Modify a built-in object by adding new lines to its dispatch table.
  The table structure is identical to that used by >BIN, and is prepended
  to the table already in use.
- The built-in is modified in place rather than issuing a new object, and
- it is also returned to the stack.
+ The built-in is modified in place rather than issuing a new object; see
+ CP if you wish to save a copy of the original object.
 \end_layout
 
 \begin_layout Standard
@@ -6573,36 +6964,6 @@ Built-in
 
 \begin_layout Plain Layout
 Object to modify
-\end_layout
-
-\end_inset
-</cell>
-</row>
-</lyxtabular>
-
-\end_inset
-
- ⇒ 
-\begin_inset Tabular
-<lyxtabular version="3" rows="1" columns="2">
-<features tabularvalignment="middle">
-<column alignment="center" valignment="top">
-<column alignment="center" valignment="top">
-<row>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-1.
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-Built-in
 \end_layout
 
 \end_inset
@@ -7693,6 +8054,87 @@ List
 \end_inset
 
 
+\end_layout
+
+\begin_layout Paragraph*
+METH
+\end_layout
+
+\begin_layout Standard
+Evaluate a block of method code in a special local context, where the contents
+ of a user type are accessible as a local variable:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="2" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top" width="0pt">
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+User type
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Source object
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Code
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Local environment
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+ ⇒
 \end_layout
 
 \begin_layout Paragraph*
@@ -10270,6 +10712,121 @@ Type number
 \end_inset
 
 
+\end_layout
+
+\begin_layout Paragraph*
+>TYPE
+\end_layout
+
+\begin_layout Standard
+Register a new data type.
+ The prototypical source object and internal name are combined into a tag,
+ which is then modified with a new type number and type name.
+ A type name must be a valid, simple symbol not already in use.
+ After registering a new type, the prototype is available as Types.Proto.Typename,
+ and new copies can be created with CP.
+ Methods can then act upon the new object (see METH):
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top" width="0pt">
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Any
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Source object
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Symbol
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Internal name
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1.
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Symbol
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Type name
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+ ⇒ 
 \end_layout
 
 \begin_layout Paragraph*

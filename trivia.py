@@ -13,6 +13,9 @@ BASDIR =  "./"
 # but bounded.
 CALLDEPTH = 2048
 
+# Hard limit on object (directory, specifically) copy recursion.
+CPDEPTH = 64
+
 # Where to put the sysRPL functions in the named store.
 INTERNALSDIR = 'I*'
 

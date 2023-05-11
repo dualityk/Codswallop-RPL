@@ -1,4 +1,46 @@
-(Object system.)
+( CODSWALLOP RPL, a zen garden
+  #####################################################
+  Object system )
+
+(Method call.  Every time a new data type is registered, a dispatch line
+ is added to METH which will execute arbitrary code in a tag-local, a
+ special local variable case which stores only the contents of a tag.
+ The custom type and code are placed on the stack, and METH will set up the
+ environment.  For right now, at least, tag types are permitted also.)
+{{ I*.tlocal Types.Tag Types.Code }}
+#2
+"Evaluate code within a new context where a user type's contents are
+available as a special local variable."
+'METH' >BIN 'METH' STO
+
+
+(Register a new data type.)
+{ { :: 
+      :: >TAG 'name' RCL DUP LEN #1 >
+        :: "Type names can't have dots" DED ; IFT
+        DUP Types.n SWAP >FUNC >STR HAS
+        (Only register a fresh, unique type.)
+        :: "That type already exists, my guy/gal" DED ;
+        :: `I*.regtype 
+          'METH' EXISTS
+          (Hook the method call to accomodate our new type.)
+          :: :x:`I*.tlocal RCL SWAP Types.Code #3 >LST #1 >LST
+            'METH' RCL HOOK ;
+          'DROP' IFTE ; 
+        IFTE 
+        (As a public service, add one to our list of highlight colors.)
+        'COLOR.TYPES' EXISTS
+        :: COLOR.TYPES "" + 'COLOR.TYPES' STO ;
+        IFT ;
+      { name } LOCAL ;
+     Types.Any Types.Symbol Types.Symbol } }
+#3
+"Register a new data type from a prototype object, a symbol, and a type name.
+The type name must not already exist.  The symbol can be any un-dotted name,
+and is used as the 'self' name within the object's methods."
+'>TYPE'
+>BIN '>TYPE' STO
+
 
 (Automate a closure by dereferencing all unquoted symbols of the form [sym],
  at least if that bracketed symbol is currently available.)
@@ -8,7 +50,7 @@
   :: >STR DUP LEN
     :: (First, could it possibly be a bracketed symbol?)
       original >OBJ length #2 >
-      :: (It could be, but is it?) 
+      :: (It could be, but is it?)
         original #1 RIGHT "]" ==
         original #0 GET "[" == AND
         :: (It is, but is it valid?)
@@ -42,28 +84,3 @@ DUP 'CLOSE' STO {} STATIC 'CLOSE' STO
 "Prepare a closure by dereferencing all unquoted symbols of the form [sym], except those in the exception list."
 'CLOSE'
 >BIN 'CLOSE' STO
-
-
-(Build an instance of a class, which takes the form:
- "instance name"
- { { :: method ; "method name" }
-   { ... } })
-
-{ { 
-:: (First close up all the methods.)
-  {} CLOSE #0
-  { { :: instance "." + SWAP + >OBJ STO ; #11 #3 } }
-  #2 "" 'MKINST' >BIN  
-  :: (Store something in our instance name.)
-    #0 'self' >DIR instance >OBJ STO
-    :: (Now, for each method, make a dotted instance name and store it.)
-      idx methods LEN < DUP
-      :: methods idx GET OBJ> DROP storemethod ;
-      IFT idx #1 + 'idx' STO ;
-    REP
-    ;
-  { storemethod idx methods instance } LOCAL ;
-`Types.String `Types.List } } {} STATIC
-#2 (Two arguments)
-"Create and store a new instance of a class, from a string instance name and a list of the form { { :: method ; ''method-name'' } ... }."
-'MKINST' >BIN 'MKINST' STO

@@ -24,7 +24,7 @@ and a dispatch table in the form of:
 I*.>bin I*.binhook '>BIN' I*.sto
 
 (Hook a builtin)
-{ { I*.binhook Types.List Types.Builtin } }
+{ { :: `I*.binhook `I*.drop ; Types.List Types.Builtin } }
 #2
 "Hook new dispatch lines into an extant builtin, in the same fashion as >BIN."
 'HOOK'
@@ -148,6 +148,11 @@ I*.>bin I*.binhook '>BIN' I*.sto
 "Duplicate the first line of the stack."
 'DUP' >BIN 'DUP' STO
 
+(Copy.)
+{ { `I*.cp `Types.Any } }
+#1
+"Return a new copy of an object.  This is only useful for mutable types."
+'CP' >BIN 'CP' STO
 
 ( ### Disk store )
 
@@ -243,9 +248,10 @@ I*.>bin I*.binhook '>BIN' I*.sto
   { `I*.+float `Types.Float   `Types.Float }
   { `I*.+float `Types.Integer `Types.Float }
   { `I*.+float `Types.Float   `Types.Integer }
+  { `I*.list+  `Types.Any     `Types.List }
   { `I*.+str   `Types.String  `Types.Any }
-  { `I*.+str   `Types.Any     `Types.String }
   { `I*.+list  `Types.List    `Types.Any }
+  { `I*.+str   `Types.Any     `Types.String }
   { `I*.+code  `Types.Code    `Types.Code } }
 #2
 "Add or concatenate two objects."
@@ -453,9 +459,11 @@ I*.>bin I*.binhook '>BIN' I*.sto
 (Length)
 { { `I*.len `Types.List }
   { `I*.len `Types.String }
-  { `I*.len `Types.Code } }
+  { `I*.len `Types.Code } 
+  { `I*.len `Types.Symbol }
+  { `I*.len `Types.Function } }
 #1
-"Return the length of a compound object or string."
+"Return the length of a compound object or string, or the depth of a symbol."
 'LEN' >BIN 'LEN' STO
 
 (Pop)
@@ -561,4 +569,4 @@ I*.>bin I*.binhook '>BIN' I*.sto
 'TRACE' >BIN 'TRACE' STO
 
 (And now, for safety, erase our internals directory.)
-'I*' RM
+('I*' RM)

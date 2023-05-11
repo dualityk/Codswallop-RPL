@@ -1,5 +1,4 @@
 - Move >STR from python to sysrpl (and consolidate with DISP?)
-- Figure out how to do user types
 - Think about whether a special 'ROM' store could be used to bootstrap an 
   RPL-side parser
 - Actually make a STOTO/RCLFROM that can work with unlinked directories maybe
@@ -8,6 +7,9 @@ crashes on store dir - Allow storing to firstobj (null store, anonymous local)
 
 no, that's dumb - Type compatibility/inheritance scheme
 
+done - Figure out how to do user types
+done - Catch attempts to store tag into itself
+done - Improve Python-side tail calling to safely catch a bunch of dumb ways to crash
 done - Implement HOOK
 done - STOTO/RCLFROM for updating tag types (as STO/RCL)
 done - Tag parser

@@ -280,6 +280,28 @@ def makebinprocs():
       rt.Stack.push(x)
       rt.ded("You have failed to erase what isn't here!")
   bins += [['rm', x]]
+
+  # Copy object explicitly.
+  def x(rt):
+    rt.Stack.push(rt.Stack.pop().dup())
+  bins += [['cp', x]]
+
+  # Tag local variable context, for use in user objects.
+  def x(rt):
+    prog = rt.Stack.pop()
+    tag = rt.Stack.pop()
+    rt.newlocall(prog, rtypes.typedir(tag, rt.firstobj))
+  bins += [['tlocal', x]]
+
+  # Register new type.
+  def x(rt):
+    name = rt.Stack.pop()
+    proto = rt.Stack.pop()
+    proto.typename = name.data[0]
+    rt.Types.registerusr(proto)
+    rt.Types.updatestore(rt)
+    rt.Stack.push(rtypes.typeint(proto.typenum))
+  bins += [['regtype', x]]
   
   # Local variable context.
   def x(rt):
@@ -405,6 +427,12 @@ def makebinprocs():
     y.push(x)
     rt.Stack.push(y)
   bins += [['+list', x]]
+
+  def x(rt):
+    x = rt.Stack.pop().dup()
+    x.data = [rt.Stack.pop()]+x.data
+    rt.Stack.push(x)
+  bins += [['list+', x]]
 
   def x(rt):
     x = rt.Stack.pop().data
@@ -595,10 +623,9 @@ def makebinprocs():
         rt.ded("If you want a built-in, you should consider a less broken dispatch table")
         return
     # Assuming we got this far, we made it, so put our new dispatches to the
-    # front of the line, and return the builtin:
+    # front of the line, and return our object:
     bin.argck = newargck + bin.argck
     bin.dispatches = newdispatches + bin.dispatches
-    
     rt.Stack.push(bin)
   bins += [['binhook', x]]
 

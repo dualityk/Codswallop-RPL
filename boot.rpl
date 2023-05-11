@@ -72,6 +72,14 @@ I*.isded
 (Turn error reporting back on.)
 #0 DEDCONT
 
+(It's really easy to crash the interpreter if we leave all the internals
+ lying around.  'SAFE' will erase the I* directory and itself.  It's then
+ immediately called, but you can comment out the call to keep the juicy
+ bits to hand.)
+:: 'I*' RM 'SAFE' RM ; 'SAFE' STO
+
+(This is what you'd comment out: ) SAFE
+
 (And hand off to a commandline program or to the user.)
 
 ARGS LEN
