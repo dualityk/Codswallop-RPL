@@ -1,29 +1,31 @@
+( CODSWALLOP RPL, a zen garden
+  #####################################################
+  Standard library )
+
 (This is the standard library, containing the most useful routines not
  implemented in the interpreter itself, including the REPL.)
 
-(Original REP command)
-(::
-  :: _body '_rep' IFT ;
-  :: _rep ; 
-  { _rep _body } LOCAL ; 
-{ _rep _body } STATIC 
-'oldREP' STO)
 
-:: (HAS: See if a value exists in a list)
-  (First, defang a symbol by putting it in a tag.)
-  'tag' >TAG
-  SWAP DUP LEN #0 (Grab its length, and set our index.)
-  :: idx length <
-    :: 'list' RCL idx GET term RCL ==
+(HAS: See if a value exists in a list.  This doesn't evaluate any
+ user code, so it was safe to implement with internals for a smidge
+ of extra speed.)
+:: 
+  'tag' `I*.>tag
+  `I*.swap `I*.dup `I*.len #0
+  :: idx length `I*.<
+    :: 'list' `I*.rcl idx `I*.get term `I*.rclfrom `I*.==
       #1
-      :: idx #1 + 'idx' STO loop ;
-      IFTE ;
+      :: idx #1 `I*.+int 'idx' `I*.sto loop ;
+      `I*.ifte ;
     #0 
-    IFTE ; 
-  DUP { loop idx length list term } LOCAL ;
+    `I*.ifte ; 
+  `I*.dup { loop idx length list term } `I*.local ;
 'HAS' STO
 
-#0 DEDCONT 
+{ { HAS Types.List Types.Any } }
+#2 "Check to see if a list on line 2 contains something like the item on line 1."
+'HAS' >BIN 'HAS' STO
+
 
 :: (STATIC: Dereference all builtins from a list, except those in the
 exception table.)
@@ -57,22 +59,16 @@ DUP 'STATIC' STO {} STATIC 'STATIC' STO (Bootstrap our static STATIC.)
 #2 "Except for the symbols in the list on line 1, dereference all builtins in the program on line 2."
 'STATIC' >BIN 'STATIC' STO
 
-'HAS' RCL {} STATIC 'HAS' STO (And our static HAS.)
-
-(And do the same with HAS.)
-{ { HAS `Types.List `Types.Any } }
-#2 "Check to see if a list on line 2 contains something like the item on line 1."
-'HAS' >BIN 'HAS' STO
 
 (REP using code modification.
-This version just appends recursion, duplicates the whole program
-to store itself in its own local variable, and goes to town.)
+ This version just appends recursion, duplicates the whole program
+ to store itself in its own local variable, and goes to town.)
 { { :: 
-      :: '_rep' IFT ; + DUP 
-      { _rep } LOCAL ; `Types.Code } }
-{} STATIC
+      :: '_rep' `IFT ; `I*.+code `I*.dup 
+      { _rep } `I*.local ; Types.Code } }
 #1 "Repeatedly evaluate a code object until it returns 0."
 'REP' >BIN 'REP' STO
+
 
 (CASE.  Takes a list in the form of:
  { { if-case then-case }
@@ -97,7 +93,7 @@ to store itself in its own local variable, and goes to town.)
       (If we fetched a then block, evaluate it here as a tail call.)
       _keeptry NOT 'EVAL' IFT ;
     IFT ;
-  { _index _keeptry _cases }
+  { _index _keeptry _cases :ELSE:#1 }
   LOCAL ;
 {} STATIC #0 PUT #1 >LST
 #1 "Takes a case list in the form of { { if-case then-case } ... } and evaluates only the first match."
@@ -125,9 +121,8 @@ to store itself in its own local variable, and goes to town.)
       (If we fetched a then block, evaluate it here as a tail call.)
       _keeptry NOT 'EVAL' IFT ;
     IFT ;
-  { _index _keeptry _cases _k }
+  { _index _keeptry _cases _k :ELSE::: DROP #1 ; }
   LOCAL ;
-{} STATIC
 {} STATIC #0 PUT #1 >LST
 #2 "Modified CASE which takes two arguments, a test value and a CASE list.  Supplies the constant for each if-case."
 'KCASE' >BIN
@@ -171,7 +166,8 @@ in that location.  Returns the code or list."
 'FOREACH'
 >BIN 'FOREACH' STO
 
-(Interactive loop...)
+
+(Read, evaluate, print, loop.)
 ::
   (Clear errors and prompt for text.)
   UNDED #1 DEDCONT

@@ -384,6 +384,8 @@ class typedir(objarchetype):
       self.next = self
     else:
       self.next = nextobj
+    # Here so == can hopefully tell us apart by address.
+    self.data = self
    
   # Duplicating a directory is trickier, because all entries and tags
   # need to be copied.  This was so hairy I had to take a shower to make it.
@@ -427,6 +429,8 @@ class typetag(objarchetype):
   def __init__(self, data, obj):
     self.name = data
     self.obj = obj
+    # This is so == can hopefully tell if we're equal by address.
+    self.data = self
 
   def dup(self):
     # Make a copy of the object we contain, also.

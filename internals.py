@@ -817,6 +817,7 @@ def makebinprocs():
     rt.Stack.push(rtypes.typeint(len(obj)))
   bins += [['composite>', x]]
   
+  # Un-binned, torn out of obj>.
   def x(rt):
     obj = rt.Stack.pop()
     rt.Stack.push(obj.tag.obj)
@@ -824,6 +825,7 @@ def makebinprocs():
     rt.Stack.push(obj.next)
   bins += [['dir>', x]]
   
+  # Return contents of tag
   def x(rt):
     obj = rt.Stack.pop()
     rt.Stack.push(obj.obj)

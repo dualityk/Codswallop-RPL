@@ -39,8 +39,6 @@ I*.>bin I*.binhook '>BIN' I*.sto
 'STO'
 >BIN 'STO' I*.sto
 
-
-
 { { `I*.>tag `Types.Any `Types.Symbol }
   { `I*.>tag `Types.Any `Types.Function } }
 #2
@@ -476,7 +474,6 @@ I*.>bin I*.binhook '>BIN' I*.sto
 (Obj>)
 { { `I*.composite> `Types.List }
   { `I*.composite> `Types.Code }
-  { `I*.dir>       `Types.Directory } 
   { `I*.tag>	   `Types.Tag }
   { `I*.bin>       `Types.Builtin } }
 #1
