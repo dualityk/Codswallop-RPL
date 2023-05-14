@@ -1,569 +1,677 @@
-(This file prepares all of the builtin commands.  As handed to us, the only
- information available is a list of types and a set of internals: single 
- dispatch routines with no type or argument checking.  Our job is to build 
- the nice safe userspace from those building blocks.
+( CODSWALLOP RPL, a zen garden
+  #####################################################
+  Builtins )
 
- This will follow the basic form of a dispatch table:
- { { `internal Types.typename ... }
-   ... }
- #n argument count
- "Hint string for DOC"
- 'NAME' name of record for error reporting purposes
- 
- Then turned into a builtin with >BIN and stored with a given name.)
+(This file prepares all of the builtin commands that are close to just being
+ wrappers around internals.  As handed to us, the only information available 
+ is a list of types and a set of internals: single dispatch routines with no 
+ type or argument checking.  Our job is to build the nice safe
+ multiply-dispatched userspace from those building blocks.)
 
-(To make things easier, we built >BIN and STO first.)
-(Make a builtin)
+(First, here's a thing which makes the rest of this code easier to read.
+ It takes a list of tags and uses those to prepare and store the builtins.
+ Sort of like named arguments, by abusing local variables.)
+::
+  :: table args hint 'name' I*.rcl I*.>bin I*.binhook 'name' I*.rcl I*.sto ;
+  I*.swap I*.local ;
+'I*.stobin' I*.sto
 
-{ { :: `I*.>bin `I*.binhook ; Types.List Types.Integer Types.String Types.Symbol } }
-#4
-"Build a new built-in from a hint string, symbol name, an argument count,
-and a dispatch table in the form of:
-  { { code objtype1 objtype2 ... } ... }"
-'>BIN'
-I*.>bin I*.binhook '>BIN' I*.sto
-
-(Hook a builtin)
-{ { :: `I*.binhook `I*.drop ; Types.List Types.Builtin } }
-#2
-"Hook new dispatch lines into an extant builtin, in the same fashion as >BIN."
-'HOOK'
->BIN 'HOOK' I*.sto
-
-(Store)
-{ { `I*.sto `Types.Any `Types.Symbol }
-  { `I*.sto `Types.Any `Types.Function }
-  { `I*.stoto `Types.Any `Types.Tag } }
-#2
-"Write an object into the named store, either to a local variable if it exists, or to the main store (or into a tag)."
-'STO'
->BIN 'STO' I*.sto
-
-{ { `I*.>tag `Types.Any `Types.Symbol }
-  { `I*.>tag `Types.Any `Types.Function } }
-#2
-"Prepare a new tag object from any object and a non-dotted symbol."
-'>TAG'
->BIN '>TAG' STO
 
 ( ### Temporaries )
 
 (Count of first objects in store.)
-{ { `I*.firsts } }
-#0
-"Count up how many first directory entries there are in the named store."
-'FIRSTS' >BIN 'FIRSTS' STO
+{ :name: FIRSTS
+  :args: #0
+  :hint: "Count up how many first directory entries there are in the named store."
+  :table: { { I*.firsts } } }
+I*.stobin
+
 
 ( ### Documentation )
 
 (List of names.)
-{ { `I*.names } }
-#0
-"Return a list of all global symbols."
-'NAMES' >BIN 'NAMES' STO
+{ :name: NAMES
+  :args: #0
+  :hint: "Return a list of all global symbols."
+  :table: { { I*.names } } }
+I*.stobin
 
 (List of names in a directory.)
-{ { `I*.dir `Types.Directory } }
-#1
-"Return a list of all names in a directory."
-'DIR' >BIN 'DIR' STO
+{ :name: DIR
+  :args: #1
+  :hint: "Return a list of all names in a directory."
+  :table: { { I*.dir Types.Directory } } }
+I*.stobin
 
 (Object type.)
-{ { `I*.type `Types.Any } }
-#1
-"Return an integer representing the type of an object."
-'TYPE' >BIN 'TYPE' STO
+{ :name: TYPE
+  :args: #1
+  :hint: "Return an integer representing the type of an object."
+  :table: { { I*.type Types.Any } } }
+I*.stobin
 
 (Introspect.)
-{ { `I*.self } }
-#0
-"Return the currently executing code block."
-'SELF' >BIN 'SELF' STO
+{ :name: SELF
+  :args: #0
+  :hint: "Return the currently executing code block."
+  :table: { { I*.self } } }
+I*.stobin
 
 
 ( ### Input/Output)
 
 (Display.)
-{ { `I*.disp `Types.Any } }
-#1
-"Print any object in human-readable form to the screen."
-'DISP' >BIN 'DISP' STO
+{ :name: DISP
+  :args: #1
+  :hint: "Print any object in human-readable form to the screen."
+  :table: { { I*.disp Types.Any } } }
+I*.stobin
 
-(Display no newline.)
-{ { `I*.dispn `Types.Any } }
-#1
-"DISP without newline."
-'DISPN' >BIN 'DISPN' STO
+(Display with no newline.)
+{ :name: DISPN
+  :args: #1
+  :hint: "DISP without newline."
+  :table: { { I*.dispn Types.Any } } }
+I*.stobin
 
 (Console input.)
-{ { `I*.prompt `Types.Any } }
-#1
-"Line input from stdin, with x as a prompt."
-'PROMPT' >BIN 'PROMPT' STO
+{ :name: PROMPT
+  :args: #1
+  :hint: "Line input from stdin, with x as a prompt."
+  :table: { { I*.prompt Types.Any } } }
+I*.stobin
 
 (Time.)
-{ { `I*.epoch } }
-#0
-"Returns epoch time as a floating point number."
-'EPOCH' >BIN 'EPOCH' STO
-
+{ :name: EPOCH
+  :args: #0
+  :hint: "Returns epoch time as a floating point number."
+  :table: { { I*.epoch } } }
+I*.stobin
 
 ( ### Stack manipulation )
 
 (Return whole stack.)
-{ { `I*.stack } }
-#0
-"Push stack onto the stack."
-'STACK' >BIN 'STACK' STO
+{ :name: STACK
+  :args: #0
+  :hint: "Push stack onto the stack."
+  :table: { { I*.stack } } }
+I*.stobin
 
 (Drop.)
-{ { `I*.drop `Types.Any } }
-#1
-"Pop and discard the first line of the stack."
-'DROP' >BIN 'DROP' STO
+{ :name: DROP
+  :args: #1
+  :hint: "Pop and discard the first line of the stack."
+  :table: { { I*.drop Types.Any } } }
+I*.stobin
 
 (Clear stacks.)
-{ { `I*.clr } }
-#0
-"Clear call and data stacks (end program)."
-'CLR' >BIN 'CLR' STO
+{ :name: CLR
+  :args: #0
+  :hint: "Clear call and data stacks (end program)."
+  :table: { { I*.clr } } }
+I*.stobin
 
 (Evaluate.)
-{ { `I*.eval `Types.Any } }
-#1
-"Evaluate the object on the first line of the stack."
-'EVAL' >BIN 'EVAL' STO
+{ :name: EVAL
+  :args: #1
+  :hint: "Evaluate the object on the first line of the stack."
+  :table: { { I*.eval Types.Any } } }
+I*.stobin
 
 (Swap.)
-{ { `I*.swap `Types.Any `Types.Any } }
-#2
-"Swap lines 1 and 2 of the stack."
-'SWAP' >BIN 'SWAP' STO
+{ :name: SWAP
+  :args: #2
+  :hint: "Swap lines 1 and 2 of the stack."
+  :table: { { I*.swap Types.Any Types.Any } } }
+I*.stobin
 
 (Duplicate.)
-{ { `I*.dup `Types.Any } }
-#1
-"Duplicate the first line of the stack."
-'DUP' >BIN 'DUP' STO
+{ :name: DUP
+  :args: #1
+  :hint: "Duplicate the first line of the stack."
+  :table: { { I*.dup Types.Any } } }
+I*.stobin
 
 (Copy.)
-{ { `I*.cp `Types.Any } }
-#1
-"Return a new copy of an object.  This is only useful for mutable types."
-'CP' >BIN 'CP' STO
+{ :name: CP
+  :args: #1
+  :hint: "Return a new copy of an object.  This is only useful for mutable types (tag, directory, user types.)"
+  :table: { { I*.cp Types.Any } } }
+I*.stobin
+
 
 ( ### Disk store )
 
 (Write object to disk.)
-{ { `I*.>dsk `Types.Any `Types.String } }
-#2
-"Write an object to disk.  In the case of a quoted symbol, a matching STO will be appended."
-'>DSK' >BIN '>DSK' STO
+{ :name: >DSK
+  :args: #2
+  :hint: "Write an object to disk.  In the case of a quoted symbol, a matching STO will be appended."
+  :table: { { I*.>dsk Types.Any Types.String } } }
+I*.stobin
 
 (Parse and evaluate from disk.)
-{ { `I*.dsk> `Types.String } }
-#1
-"Read a file from disk and shove it straight into the parser."
-'DSK>' >BIN 'DSK>' STO
+{ :name: DSK>
+  :args: #1
+  :hint: "Read a file from disk and shove it straight into the parser."
+  :table: { { I*.dsk> Types.String } } }
+I*.stobin
 
 
 ( ### Named store )
+(Store symbol)
+{ :name: STO
+  :args: #2
+  :hint: "Write an object into the named store, either to a local variable if it exists, or to the main store (or into a tag)."
+  :table:
+  { { I*.sto   Types.Any Types.Symbol }
+    { I*.sto   Types.Any Types.Function }
+    { I*.stoto Types.Any Types.Tag } } }
+I*.stobin
+
 (Recall symbol)
-{ { `I*.rcl `Types.Symbol }
-  { `I*.rcl `Types.Function }
-  { `I*.rclfrom `Types.Tag } }
-#1
-"Recall an object from the most local named store that has it, or extract an object from a tag."
-'RCL' >BIN 'RCL' STO
+{ :name: RCL
+  :args: #1
+  :hint: "Recall an object from the most local named store that has it, or extract an object from a tag."
+  :table:
+  { { I*.rcl     Types.Symbol }
+    { I*.rcl     Types.Function }
+    { I*.rclfrom Types.Tag } } }
+I*.stobin
 
 (Dereference symbol)
-{ { `I*.deref `Types.Symbol }
-  { `I*.deref `Types.Function } }
-#1
-"Return de reference of the most local entry of this symbol in the named store."
-'DEREF' >BIN 'DEREF' STO
+{ :name: DEREF
+  :args: #1
+  :hint: "Return de reference of the most local tag for this symbol in the named store."
+  :table:
+  { { I*.deref Types.Symbol }
+    { I*.deref Types.Function } } }
+I*.stobin
 
 (Does it exist?)
-{ { `I*.exists `Types.Symbol }
-  { `I*.exists `Types.Function } }
-#1
-"Check to see if a symbol exists in the current named store (including locals.)"
-'EXISTS' >BIN 'EXISTS' STO
+{ :name: EXISTS
+  :args: #1
+  :hint: "Check to see if a symbol exists in the current named store (including locals.)"
+  :table:
+  { { I*.exists Types.Symbol }
+    { I*.exists Types.Function } } }
+I*.stobin
 
 (Erase name)
-{ { `I*.rm `Types.Symbol }
-  { `I*.rm `Types.Function } }
-#1
-"Remove an object from the most local named store."
-'RM' >BIN 'RM' STO
+{ :name: RM
+  :args: #1
+  :hint: "Remove an object from the most local named store."
+  :table:
+  { { I*.rm Types.Symbol }
+    { I*.rm Types.Function } } }
+I*.stobin
 
 (New local context)
-{ { `I*.local `Types.Code `Types.List } }
-#2
-"Create and evaluate a local variable context.  Stack level 2 contains the code which will run in the context; stack level 1 contains a list of symbol names for that context.  Levels 3 and up contain the objects to be stored."
-'LOCAL' >BIN 'LOCAL' STO
+{ :name: LOCAL
+  :args: #2
+  :hint: "Create and evaluate a local variable context.  Stack level 2 contains the code which will run in the context; stack level 1 contains a list of symbol names for that context.  Levels 3 and up contain the objects to be stored."
+  :table: { { I*.local Types.Code Types.List } } }
+I*.stobin
 
 
 ( ### Flow control )
 (SST)
-{ { `I*.sst } }
-#0
-"Enable single step debugging mode."
-'SST' >BIN 'SST' STO
+{ :name: SST
+  :args: #0
+  :hint: "Enable single step debugging mode."
+  :table: { { I*.sst } } }
+I*.stobin
 
 (No SST)
-{ { `I*.sstoff } }
-#0
-"Disable single step debugging mode."
-'SSTOFF' >BIN 'SSTOFF' STO
+{ :name: SSTOFF
+  :args: #0
+  :hint: "Disable single step debugging mode."
+  :table: { { I*.sstoff } } }
+I*.stobin
 
 (Bail)
-{ { `I*.bail } }
-#0
-"Bail out of a context (pop one off the call stack)."
-'BAIL' >BIN 'BAIL' STO
+{ :name: BAIL
+  :args: #0
+  :hint: "Bail out of a context (pop one off the call stack)."
+  :table: { { I*.bail } } }
+I*.stobin
 
 (Bail-eval)
-{ { `I*.beval `Types.Any } }
-#1
-"Bail out of a context and evaluate a new one (this is more or less a goto.)"
-'BEVAL' >BIN 'BEVAL' STO
+{ :name: BEVAL
+  :args: #1
+  :hint: "Bail out of a context and evaluate a new one (this is more or less a goto.)"
+  :table: { { I*.beval Types.Any } } }
+I*.stobin
 
 (If then)
-{ { `I*.ift `Types.Any `Types.Any } }
-#2
-"If stack level 2 is true, then evaluate stack level 1."
-'IFT' >BIN 'IFT' STO
+{ :name: IFT
+  :args: #2
+  :hint: "If stack level 2 is true, then evaluate stack level 1."
+  :table: { { I*.ift Types.Any Types.Any } } }
+I*.stobin
 
 (If then else)
-{ { `I*.ifte `Types.Any `Types.Any `Types.Any } }
-#3
-"If stack level 3 is true, then evaluate line 2, else evaluate line 1."
-'IFTE' >BIN 'IFTE' STO
+{ :name: IFTE
+  :args: #3
+  :hint: "If stack level 3 is true, then evaluate line 2, else evaluate line 1."
+  :table: { { I*.ifte Types.Any Types.Any Types.Any } } }
+I*.stobin
 
+
+( ### Maths )
 (Addition)
-{ { `I*.+int   `Types.Integer `Types.Integer }
-  { `I*.+float `Types.Float   `Types.Float }
-  { `I*.+float `Types.Integer `Types.Float }
-  { `I*.+float `Types.Float   `Types.Integer }
-  { `I*.list+  `Types.Any     `Types.List }
-  { `I*.+str   `Types.String  `Types.Any }
-  { `I*.+list  `Types.List    `Types.Any }
-  { `I*.+str   `Types.Any     `Types.String }
-  { `I*.+code  `Types.Code    `Types.Code } }
-#2
-"Add or concatenate two objects."
-'+' >BIN '+' STO
+{ :name: +
+  :args: #2
+  :hint: "Add or concatenate two objects."
+  :table:
+  { { I*.+int   Types.Integer Types.Integer }
+    { I*.+float Types.Float   Types.Float }
+    { I*.+float Types.Integer Types.Float }
+    { I*.+float Types.Float   Types.Integer }
+    { I*.list+  Types.Any     Types.List }
+    { I*.+str   Types.String  Types.Any }
+    { I*.+list  Types.List    Types.Any }
+    { I*.+str   Types.Any     Types.String }
+    { I*.+code  Types.Code    Types.Code } } }
+I*.stobin
 
 (Multiply)
-{ { `I*.*int       `Types.Integer `Types.Integer }
-  { `I*.*float     `Types.Float   `Types.Float }
-  { `I*.*float     `Types.Integer `Types.Float }
-  { `I*.*float     `Types.Float   `Types.Integer }
-  { `I*.*str       `Types.String  `Types.Integer }
-  { `I*.*composite `Types.List    `Types.Integer }
-  { `I*.*composite `Types.Code    `Types.Integer } }
-#2
-"Arithmetic multiply, or repeat strings, lists, or programs."
-'*' >BIN '*' STO
+{ :name: *
+  :args: #2
+  :hint: "Arithmetic multiply, or repeat strings, lists, or programs."
+  :table:
+  { { I*.*int       Types.Integer Types.Integer }
+    { I*.*float     Types.Float   Types.Float }
+    { I*.*float     Types.Integer Types.Float }
+    { I*.*float     Types.Float   Types.Integer }
+    { I*.*str       Types.String  Types.Integer }
+    { I*.*composite Types.List    Types.Integer }
+    { I*.*composite Types.Code    Types.Integer } } }
+I*.stobin
 
 (Subtract)
-{ { `I*.-int   `Types.Integer `Types.Integer }
-  { `I*.-float `Types.Float   `Types.Float }
-  { `I*.-float `Types.Integer `Types.Float }
-  { `I*.-float `Types.Float   `Types.Integer } }
-#2
-"Arithmetic subtraction."
-'-' >BIN '-' STO
+{ :name: -
+  :args: #2
+  :hint: "Arithmetic subtraction."
+  :table:
+  { { I*.-int   Types.Integer Types.Integer }
+    { I*.-float Types.Float   Types.Float }
+    { I*.-float Types.Integer Types.Float }
+    { I*.-float Types.Float   Types.Integer } } }
+I*.stobin
 
 (Divide)
-{ { `I*./int   `Types.Integer `Types.Integer }
-  { `I*./float `Types.Float   `Types.Float }
-  { `I*./float `Types.Integer `Types.Float }
-  { `I*./float `Types.Float   `Types.Integer } }
-#2
-"Arithmetic division."
-'/' >BIN '/' STO
+{ :name: /
+  :args: #2
+  :hint: "Arithmetic division."
+  :table:
+  { { I*./int   Types.Integer Types.Integer }
+    { I*./float Types.Float   Types.Float }
+    { I*./float Types.Integer Types.Float }
+    { I*./float Types.Float   Types.Integer } } }
+I*.stobin
 
 (Negate)
-{ { `I*.neg `Types.Integer }
-  { `I*.neg `Types.Float } }
-#1
-"Negate a number."
-'NEG' >BIN 'NEG' STO
+{ :name: NEG
+  :args: #1
+  :hint: "Negate a number."
+  :table:
+  { { I*.neg Types.Integer }
+    { I*.neg Types.Float } } }
+I*.stobin
 
 (Random)
-{ { `I*.rnd } }
-#0
-"Return a random number between 0 and 1."
-'RND' >BIN 'RND' STO
+{ :name: RND
+  :args: #0
+  :hint: "Return a random number between 0 and 1."
+  :table: { { I*.rnd } } }
+I*.stobin
 
 (Integer portion)
-{ { `I*.ip `Types.Float }
-  { `I*.ip `Types.Integer } }
-#1
-"Return integer portion of floating point number."
-'IP' >BIN 'IP' STO
+{ :name: IP
+  :args: #1
+  :hint: "Return integer portion of floating point number."
+  :table:
+  { { I*.ip Types.Float }
+    { I*.ip Types.Integer } } }
+I*.stobin
 
 
 ( ### Conversions )
 
-(>BIN would go here but it's up top.)
+(Make a builtin)
+{ :name: >BIN
+  :args: #4
+  :hint: "Build a new built-in from a hint string, symbol name, an argument count, and a dispatch table in the form of:
+  { { code objtype1 objtype2 ... } ... }"
+  :table:
+  { { :: `I*.>bin `I*.binhook ; 
+      Types.List Types.Integer Types.String Types.Symbol } } }
+I*.stobin
+
+(Hook a builtin)
+{ :name: HOOK
+  :args: #2
+  :hint: "Hook new dispatch lines into an extant builtin, in the same fashion as >BIN."
+  :table:
+  { { :: `I*.binhook `I*.drop ; Types.List Types.Builtin } } }
+I*.stobin
+
+(Make a tag)
+{ :name: >TAG
+  :args: #2
+  :hint: "Prepare a new tag object from any object and a non-dotted symbol."
+  :table:
+  { { I*.>tag Types.Any Types.Symbol }
+    { I*.>tag Types.Any Types.Function } } }
+I*.stobin
 
 (Make directory)
-{ { `I*.mkdir } }
-#0
-"Create a new empty directory."
-'MKDIR' >BIN 'MKDIR' STO
+{ :name: MKDIR
+  :args: #0
+  :hint: "Create a new empty directory."
+  :table: { { I*.mkdir } } }
+I*.stobin
 
 (Coerce to integer)
-{ { `I*.num>int `Types.Float }
-  { `I*.str>int `Types.String }
-  { (Fageddaboudit) `Types.Integer } }
-#1
-"Make a number or string an integer."
-'>INT' >BIN '>INT' STO
+{ :name: >INT
+  :args: #1
+  :hint: "Make a number or string an integer."
+  :table:
+  { { I*.num>int Types.Float }
+    { I*.str>int Types.String }
+    { (Fageddaboudit) Types.Integer } } }
+I*.stobin
 
 (Coerce to float)
-{ { `I*.num>float   `Types.Integer }
-  { `I*.str>float   `Types.String }
-  { (Fageddaboudit) `Types.Float } }
-#1
-"Make a number or string a float."
-'>FLOAT' >BIN '>FLOAT' STO
+{ :name: >FLOAT
+  :args: #1
+  :hint: "Make a number or string a float."
+  :table:
+  { { I*.num>float   Types.Integer }
+    { I*.str>float   Types.String }
+    { (Fageddaboudit) Types.Float } } }
+I*.stobin
 
 (Basic-type VAL)
-{ { `I*.basicval `Types.String } }
-#1
-"Like BASIC, turn a string into a float, 0 if 0, 0 also if error."
-'VAL' >BIN 'VAL' STO
+{ :name: VAL
+  :args: #1
+  :hint: "Like BASIC, turn a string into a float, 0 if 0, 0 also if error."
+  :table: { { I*.basicval Types.String } } }
+I*.stobin
 
 (Character to integer)
-{ { `I*.asc> `Types.String } }
-#1
-"Retreive the character number of the first character in a string."
-'ASC>' >BIN 'ASC>' STO
+{ :name: ASC>
+  :args: #1
+  :hint: "Retreive the character number of the first character in a string."
+  :table: { { I*.asc> Types.String } } }
+I*.stobin
 
 (Integer to character)
-{ { `I*.>asc `Types.Integer } }
-#1
-"Return a character from an integer value."
-'>ASC' >BIN '>ASC' STO
+{ :name: >ASC
+  :args: #1
+  :hint: "Return a character from an integer value."
+  :table: { { I*.>asc Types.Integer } } }
+I*.stobin
 
 (String to objects)
-{ { `I*.>obj `Types.String } }
-#1
-"Parse a string into an RPL object."
-'>OBJ' >BIN '>OBJ' STO
+{ :name: >OBJ
+  :args: #1
+  :hint: "Parse a string into an RPL object."
+  :table: { { I*.>obj Types.String } } }
+I*.stobin
 
 (To symbol)
-{ { `I*.str>sym `Types.String }
-  { `I*.func>sym `Types.Function }
-  { (Nop) `Types.Symbol } }
-#1
-"Turn a string or function into a quoted symbol."
-'>SYM' >BIN '>SYM' STO
+{ :name: >SYM
+  :args: #1
+  :hint: "Turn a string or function into a quoted symbol."
+  :table:
+  { { I*.str>sym Types.String }
+    { I*.func>sym Types.Function }
+    { (Nop) Types.Symbol } } }
+I*.stobin
 
 (To function)
-{ { `I*.str>func `Types.String }
-  { `I*.sym>func `Types.Symbol }
-  { (Nop) `Types.Function } }
-#1
-"Turn a string or symbol into an unquoted symbol."
-'>FUNC' >BIN '>FUNC' STO
+{ :name: >FUNC
+  :args: #1
+  :hint: "Turn a string or symbol into an unquoted symbol."
+  :table:
+  { { I*.str>func Types.String }
+    { I*.sym>func Types.Symbol }
+    { (Nop) Types.Function } } }
+I*.stobin
 
 (To string)
-{ { `I*.>str `Types.Any } }
-#1
-"Return a string representation of an object."
-'>STR' >BIN '>STR' STO
+{ :name: >STR
+  :args: #1
+  :hint: "Return a string representation of an object."
+  :table: { { I*.>str Types.Any } } }
+I*.stobin
+
 
 ( ### Comparisons )
 
 (Equality)
-{ { `I*.== `Types.Any `Types.Any } }
-#2
-"Test two objects for equality."
-'==' >BIN '==' STO
+{ :name: ==
+  :args: #2
+  :hint: "Test two objects for equality."
+  :table: { { I*.== Types.Any Types.Any } } }
+I*.stobin
 
-{ { `I*.!= `Types.Any `Types.Any } }
-#2
-"Test two objects for inequality."
-'!=' >BIN '!=' STO
+(Inequality)
+{ :name: !=
+  :args: #2
+  :hint: "Test two objects for inequality."
+  :table: { { I*.!= Types.Any Types.Any } } }
+I*.stobin
 
 (Less than)
-{ { `I*.< `Types.Integer `Types.Integer }
-  { `I*.< `Types.Float   `Types.Float }
-  { `I*.< `Types.Integer `Types.Float }
-  { `I*.< `Types.Float   `Types.Integer } }
-#2
-"Compare two numbers."
-'<' >BIN '<' STO
+{ :name: <
+  :args: #2
+  :hint: "Compare two numbers."
+  :table:
+  { { I*.< Types.Integer Types.Integer }
+    { I*.< Types.Float   Types.Float }
+    { I*.< Types.Integer Types.Float }
+    { I*.< Types.Float   Types.Integer } } }
+I*.stobin
 
 (Less than or equal to)
-{ { `I*.<= `Types.Integer `Types.Integer }
-  { `I*.<= `Types.Float   `Types.Float }
-  { `I*.<= `Types.Integer `Types.Float }
-  { `I*.<= `Types.Float   `Types.Integer } }
-#2
-"Compare two numbers."
-'<=' >BIN '<=' STO
+{ :name: <=
+  :args: #2
+  :hint: "Compare two numbers."
+  :table:
+  { { I*.<= Types.Integer Types.Integer }
+    { I*.<= Types.Float   Types.Float }
+    { I*.<= Types.Integer Types.Float }
+    { I*.<= Types.Float   Types.Integer } } }
+I*.stobin
 
 (Greater than)
-{ { `I*.> `Types.Integer `Types.Integer }
-  { `I*.> `Types.Float   `Types.Float }
-  { `I*.> `Types.Integer `Types.Float }
-  { `I*.> `Types.Float   `Types.Integer } }
-#2
-"Compare two numbers."
-'>' >BIN '>' STO
+{ :name: >
+  :args: #2
+  :hint: "Compare two numbers."
+  :table:
+  { { I*.> Types.Integer Types.Integer }
+    { I*.> Types.Float   Types.Float }
+    { I*.> Types.Integer Types.Float }
+    { I*.> Types.Float   Types.Integer } } }
+I*.stobin
 
 (Greater than or equal to)
-{ { `I*.>= `Types.Integer `Types.Integer }
-  { `I*.>= `Types.Float   `Types.Float }
-  { `I*.>= `Types.Integer `Types.Float }
-  { `I*.>= `Types.Float   `Types.Integer } }
-#2
-"Compare two numbers."
-'>=' >BIN '>=' STO
+{ :name: >=
+  :args: #2
+  :hint: "Compare two numbers."
+  :table:
+  { { I*.>= Types.Integer Types.Integer }
+    { I*.>= Types.Float   Types.Float }
+    { I*.>= Types.Integer Types.Float }
+    { I*.>= Types.Float   Types.Integer } } }
+I*.stobin
 
 (AND)
-{ { `I*.and `Types.Integer `Types.Integer }
-  { `I*.and `Types.Float   `Types.Float }
-  { `I*.and `Types.Integer `Types.Float }
-  { `I*.and `Types.Float   `Types.Integer } }
-#2
-"Compare two numbers."
-'AND' >BIN 'AND' STO
+{ :name: AND
+  :args: #2
+  :hint: "Compare two numbers."
+  :table:
+  { { I*.and Types.Integer Types.Integer }
+    { I*.and Types.Float   Types.Float }
+    { I*.and Types.Integer Types.Float }
+    { I*.and Types.Float   Types.Integer } } }
+I*.stobin
 
 (OR)
-{ { `I*.or `Types.Integer `Types.Integer }
-  { `I*.or `Types.Float   `Types.Float }
-  { `I*.or `Types.Integer `Types.Float }
-  { `I*.or `Types.Float   `Types.Integer } }
-#2
-"Compare two numbers."
-'OR' >BIN 'OR' STO
+{ :name: OR
+  :args: #2
+  :hint: "Compare two numbers."
+  :table:
+  { { I*.or Types.Integer Types.Integer }
+    { I*.or Types.Float   Types.Float }
+    { I*.or Types.Integer Types.Float }
+    { I*.or Types.Float   Types.Integer } } }
+I*.stobin
 
 (NOT)
-{ { `I*.not `Types.Integer }
-  { `I*.not `Types.Float } }
-#1
-"Boolean NOT: return #0 if object is true, or #1 if it is false."
-'NOT' >BIN 'NOT' STO
+{ :name: NOT
+  :args: #1
+  :hint: "Boolean NOT: return #0 if object is true, or #1 if it is false."
+  :table:
+  { { I*.not Types.Integer }
+    { I*.not Types.Float } } }
+I*.stobin
 
 
 ( ### List functions )
 (Length)
-{ { `I*.len `Types.List }
-  { `I*.len `Types.String }
-  { `I*.len `Types.Code } 
-  { `I*.len `Types.Symbol }
-  { `I*.len `Types.Function } }
-#1
-"Return the length of a compound object or string, or the depth of a symbol."
-'LEN' >BIN 'LEN' STO
+{ :name: LEN
+  :args: #1
+  :hint: "Return the length of a compound object or string, or the depth of a symbol."
+  :table:
+  { { I*.len Types.List }
+    { I*.len Types.String }
+    { I*.len Types.Code } 
+    { I*.len Types.Symbol }
+    { I*.len Types.Function } } }
+I*.stobin
 
 (Pop)
-{ { `I*.pop `Types.List }
-  { `I*.pop `Types.Code } }
-#1
-"Pop the last item off a list."
-'POP' >BIN 'POP' STO
+{ :name: POP
+  :args: #1
+  :hint: "Pop the last item off a list."
+  :table:
+  { { I*.pop Types.List }
+    { I*.pop Types.Code } } }
+I*.stobin
 
 (Obj>)
-{ { `I*.composite> `Types.List }
-  { `I*.composite> `Types.Code }
-  { `I*.tag>	   `Types.Tag }
-  { `I*.bin>       `Types.Builtin } }
-#1
-"Break up a composite object into its components, and return the object count in stack level 1 (or the next object in case of directory entries.)"
-'OBJ>' >BIN 'OBJ>' STO
+{ :name: OBJ>
+  :args: #1
+  :hint: "Break up a composite object and return the object count in stack level 1.  Or return the contents of a tag or builtin."
+  :table:
+  { { I*.composite> Types.List }
+    { I*.composite> Types.Code }
+    { I*.tag>	    Types.Tag }
+    { I*.bin>       Types.Builtin } } }
+I*.stobin
 
 (Subset from left)
-{ { `I*.left `Types.String `Types.Integer }
-  { `I*.left `Types.List   `Types.Integer }
-  { `I*.left `Types.Code   `Types.Integer } }
-#2
-"Fetch a subset of a string, list, or program."
-'LEFT' >BIN 'LEFT' STO
+{ :name: LEFT
+  :args: #2
+  :hint: "Fetch a subset of a string, list, or program."
+  :table:
+  { { I*.left Types.String Types.Integer }
+    { I*.left Types.List   Types.Integer }
+    { I*.left Types.Code   Types.Integer } } }
+I*.stobin
 
 (Subset from right)
-{ { `I*.right `Types.String `Types.Integer }
-  { `I*.right `Types.List   `Types.Integer }
-  { `I*.right `Types.Code   `Types.Integer } }
-#2
-"Fetch a subset of a string, list, or program."
-'RIGHT' >BIN 'RIGHT' STO
+{ :name: RIGHT
+  :args: #2
+  :hint: "Fetch a subset of a string, list, or program."
+  :table:
+  { { I*.right Types.String Types.Integer }
+    { I*.right Types.List   Types.Integer }
+    { I*.right Types.Code   Types.Integer } } }
+I*.stobin
 
 (Subset from middle)
-{ { `I*.subs `Types.String `Types.Integer `Types.Integer }
-  { `I*.subs `Types.List   `Types.Integer `Types.Integer }
-  { `I*.subs `Types.Code   `Types.Integer `Types.Integer } }
-#3
-"Fetch a subset of a string, list, or program."
-'SUBS' >BIN 'SUBS' STO
+{ :name: SUBS
+  :args: #3
+  :hint: "Fetch a subset of a string, list, or program."
+  :table:
+  { { I*.subs Types.String Types.Integer Types.Integer }
+    { I*.subs Types.List   Types.Integer Types.Integer }
+    { I*.subs Types.Code   Types.Integer Types.Integer } } }
+I*.stobin
 
 (Get from composite)
-{ { `I*.get `Types.List   `Types.Integer }
-  { `I*.get `Types.String `Types.Integer }
-  { `I*.get `Types.Code   `Types.Integer } }
-#2
-"Fetch an object from a string or list."
-'GET' >BIN 'GET' STO
+{ :name: GET
+  :args: #2
+  :hint: "Fetch a character from a string or an object from a list or code."
+  :table:
+  { { I*.get Types.List   Types.Integer }
+    { I*.get Types.String Types.Integer }
+    { I*.get Types.Code   Types.Integer } } }
+I*.stobin
 
 (Put to composite)
-{ { `I*.put `Types.List `Types.Any `Types.Integer }
-  { `I*.put `Types.Code `Types.Any `Types.Integer } }
-#3
-"Store an object into a list."
-'PUT' >BIN 'PUT' STO
+{ :name: PUT
+  :args: #3
+  :hint: "Store an object into a list or code."
+  :table:
+  { { I*.put Types.List Types.Any Types.Integer }
+    { I*.put Types.Code Types.Any Types.Integer } } }
+I*.stobin
 
 (Make list)
-{ { `I*.>lst          `Types.Integer }
-  { `I*.composite>lst `Types.Code }
-  { (Nothin')         `Types.List } }
-#1
-"Combine x objects into a list, or convert code to a list."
-'>LST' >BIN '>LST' STO
+{ :name: >LST
+  :args: #1
+  :hint: "Combine x objects into a list, or convert code to a list."
+  :table:
+  { { I*.>lst          Types.Integer }
+    { I*.composite>lst Types.Code }
+    { (Nothin')        Types.List } } }
+I*.stobin
 
 
 ( ### Error handling functions )
 (Cause an error)
-{ { `I*.ded `Types.String } }
-#1
-"Invoke error handler with level 1 as its message."
-'DED' >BIN 'DED' STO
+{ :name: DED
+  :hint: "Invoke error handler with level 1 as its message."
+  :args: #1
+  :table: { { I*.ded Types.String } } }
+I*.stobin
 
 (Is there an error?)
-{ { `I*.isded } }
-#0
-"Return a boolean representing an uncleared error."
-'ISDED' >BIN 'ISDED' STO
+{ :name: ISDED
+  :args: #0
+  :hint: "Return a boolean representing an uncleared error."
+  :table: { { I*.isded } } }
+I*.stobin
 
 (Clear error state)
-{ { `I*.unded } }
-#0
-"Clear stored error condition."
-'UNDED' >BIN 'UNDED' STO
+{ :name: UNDED
+  :args: #0
+  :hint: "Clear stored error condition."
+  :table: { { I*.unded } } }
+I*.stobin
 
 (Set error continuation)
-{ { `I*.dedcont `Types.Integer } }
-#1
-"Set error continuation: 0 will stop on error, 1 will suppress some messages but still set ISDED."
-'DEDCONT' >BIN 'DEDCONT' STO
+{ :name: DEDCONT
+  :args: #1
+  :hint: "Set error continuation: 0 will stop on error, 1 will suppress some messages but still set ISDED."
+  :table: { { I*.dedcont Types.Integer } } }
+I*.stobin
 
 (Set break to singlestep flag)
-{ { `I*.brksst `Types.Integer } }
-#1
-"Set break behavior: 0 will stop on break, 1 will enable single stepping."
-'BRKSST' >BIN 'BRKSST' STO
+{ :name: BRKSST
+  :args: #1
+  :hint: "Set break behavior: 0 will stop on break, 1 will enable single stepping."
+  :table: { { I*.brksst Types.Integer } } }
+I*.stobin
 
 (Set traceback depth)
-{ { `I*.trace `Types.Integer } }
-#1
-"Set the number of contexts to leave on the call stack with CLR or when tracing back an error (normally 1 for interactive mode, or 0 otherwise.)"
-'TRACE' >BIN 'TRACE' STO
-
-(And now, for safety, erase our internals directory.)
-('I*' RM)
+{ :name: TRACE
+  :args: #1
+  :hint: "Set the number of contexts to leave on the call stack with CLR or when tracing back an error (normally 1 for interactive mode, or 0 otherwise.)"
+  :table: { { I*.trace Types.Integer } } }
+I*.stobin
