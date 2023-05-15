@@ -42,7 +42,7 @@ I*.stobin
         :: (If it's an unquoted symbol...)
           `I*.dup `I*.swap `I*.type `Types.Function `I*.== 
           :: (Make sure it's not an exception, and that it exists..)
-            `I*.dup `I*.dup exceptions `I*.swap `I*.has `I*.not 
+            `I*.dup `I*.dup exceptions `I*.swap HAS `I*.not 
             `I*.swap `I*.exists `I*.and
             :: (Pull it, is it a built-in or an internal?)
               `I*.rcl `I*.dup `I*.type `I*.dup `Types.Builtin `I*.== 
@@ -60,7 +60,7 @@ I*.stobin
       `I*.ifte ;
     `I*.dup { loop idx length list exceptions } `I*.local ;
 `I*.dup { recurse :drop2::: `I*.drop `I*.drop ; } `I*.local ;
-'I*.static' STO
+DUP 'I*.static' STO {} I*.static 'I*.static' STO
 
 { :name: STATIC
   :args: #2
