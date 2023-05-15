@@ -5,7 +5,6 @@
 (This is the standard library, containing the most useful routines not
  implemented in the interpreter itself, including the REPL.)
 
-
 (HAS: See if a value exists in a list.  This doesn't evaluate any
  user code, so it was safe to implement with internals for a smidge
  of extra speed.)
@@ -20,44 +19,56 @@
     #0 
     `I*.ifte ; 
   `I*.dup { loop idx length list term } `I*.local ;
-'HAS' STO
+'I*.has' STO
 
-{ { HAS Types.List Types.Any } }
-#2 "Check to see if a list on line 2 contains something like the item on line 1."
-'HAS' >BIN 'HAS' STO
-
-
-:: (STATIC: Dereference all builtins from a list, except those in the
-exception table.)
-  SWAP DUP LEN #0
-  :: idx length <
-    :: 'list' RCL DUP idx GET DUP TYPE (List, list item, item type.)
-      DUP Types.List == SWAP Types.Code == OR (If it's a composite type, recurse.)
-      :: exceptions STATIC idx PUT 'list' STO ;
-      :: DUP TYPE Types.Function == (If it's an unquoted symbol...)
-        :: DUP DUP exceptions SWAP HAS NOT 
-           (Make sure it's not an exception.)
-           SWAP EXISTS AND (And that it's real.)
-          :: RCL DUP TYPE DUP Types.Builtin == SWAP Types.Internal == OR
-            (Pull it, is it a built-in or an internal?)
-            :: idx PUT 'list' STO ; (Yes, so store the thing itself.)
-            :: DROP DROP ; (No, clear the stack.)
-            IFTE ;
-          :: DROP DROP ; (No, clear the stack.)
-          IFTE ;
-        :: DROP DROP ; (No, clear the stack.)
-        IFTE ;
-      IFTE idx #1 + 'idx' STO loop ;
-    :: 'list' RCL ; (If there aren't any more things, return the list.)
-    IFTE ;
-  DUP { loop idx length list exceptions } LOCAL ;
-DUP 'STATIC' STO {} STATIC 'STATIC' STO (Bootstrap our static STATIC.)
+{ :name: HAS
+  :args: #2
+  :hint: "Check to see if a list on line 2 contains something like the item on line 1."
+  :table: { { I*.has Types.List Types.Any } } }
+I*.stobin
 
 
-(Now, turn STATIC into a real boy.)
-{ { STATIC `Types.List `Types.List } { STATIC `Types.Code `Types.List } }
-#2 "Except for the symbols in the list on line 1, dereference all builtins in the program on line 2."
-'STATIC' >BIN 'STATIC' STO
+(STATIC: Dereference all builtins from a list, except those in the
+ exception table.  Like HAS, implemented with internals for speed.)
+::
+  :: 
+    `I*.swap `I*.dup `I*.len #0
+    :: idx length `I*.<
+      :: (List, list item, item type.)
+        'list' `I*.rcl `I*.dup idx `I*.get `I*.dup `I*.type 
+        (If it's a composite type, recurse.)
+        `I*.dup `Types.List `I*.== `I*.swap `Types.Code `I*.== `I*.or
+        :: exceptions recurse idx `I*.put 'list' `I*.sto ;
+        :: (If it's an unquoted symbol...)
+          `I*.dup `I*.swap `I*.type `Types.Function `I*.== 
+          :: (Make sure it's not an exception, and that it exists..)
+            `I*.dup `I*.dup exceptions `I*.swap `I*.has `I*.not 
+            `I*.swap `I*.exists `I*.and
+            :: (Pull it, is it a built-in or an internal?)
+              `I*.rcl `I*.dup `I*.type `I*.dup `Types.Builtin `I*.== 
+              `I*.swap `Types.Internal `I*.== `I*.or
+              :: (Yes, so store the thing itself.)
+                idx `I*.put 'list' `I*.sto ; 
+              'drop2' (No, clear the stack.)
+              `I*.ifte ;
+            'drop2' (No, clear the stack.)
+            `I*.ifte ;
+          'drop2' (No, clear the stack.)
+          `I*.ifte ;
+        `I*.ifte idx #1 `I*.+int 'idx' `I*.sto loop ;
+      :: 'list' `I*.rcl ; (If there aren't any more things, return the list.)
+      `I*.ifte ;
+    `I*.dup { loop idx length list exceptions } `I*.local ;
+`I*.dup { recurse :drop2::: `I*.drop `I*.drop ; } `I*.local ;
+'I*.static' STO
+
+{ :name: STATIC
+  :args: #2
+  :hint: "Except for the symbols in the list on line 1, dereference all builtins in the program on line 2."
+  :table:
+  { { I*.static Types.List Types.List }
+    { I*.static Types.Code Types.List } } }
+I*.stobin
 
 
 (REP using code modification.
@@ -157,8 +168,8 @@ DUP 'STATIC' STO {} STATIC 'STATIC' STO (Bootstrap our static STATIC.)
 'FOREACH' STO
 
 (Now make it a builtin.)
-{ { FOREACH `Types.List `Types.Any }
-  { FOREACH `Types.Code `Types.Any } }
+{ { FOREACH Types.List Types.Any }
+  { FOREACH Types.Code Types.Any } }
 #2
 "For each element of code or a list in line 2, place the element on the
 stack and evaluate line 1.  'update' can be called to store a new element
