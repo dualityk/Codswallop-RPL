@@ -85,10 +85,8 @@ I*.stobin
  { { if-case then-case }
    { if-case then-case }
    ... } )
-{ (case goes here) `Types.List }
+{ (case goes here) Types.List }
 ::
-  #1 (_keeptry)
-  #0 (_index)
   ::
     _cases LEN (Don't even try if there's no cases to check.)
     ::
@@ -104,7 +102,7 @@ I*.stobin
       (If we fetched a then block, evaluate it here as a tail call.)
       _keeptry NOT 'EVAL' IFT ;
     IFT ;
-  { _index _keeptry _cases :ELSE:#1 }
+  { :_index:#0 :_keeptry:#1 _cases :ELSE:#1 }
   LOCAL ;
 {} STATIC #0 PUT #1 >LST
 #1 "Takes a case list in the form of { { if-case then-case } ... } and evaluates only the first match."
@@ -115,8 +113,6 @@ I*.stobin
  the test value and the CASE style list.)
 { (kcase goes here) `Types.Any `Types.List }
 ::
-  #1 (_keeptry)
-  #0 (_index)
   ::
     _cases LEN (Don't even try if there's no cases to check.)
     ::
@@ -132,7 +128,7 @@ I*.stobin
       (If we fetched a then block, evaluate it here as a tail call.)
       _keeptry NOT 'EVAL' IFT ;
     IFT ;
-  { _index _keeptry _cases _k :ELSE::: DROP #1 ; }
+  { :_index:#0 :_keeptry:#1 _cases _k :ELSE::: DROP #1 ; }
   LOCAL ;
 {} STATIC #0 PUT #1 >LST
 #2 "Modified CASE which takes two arguments, a test value and a CASE list.  Supplies the constant for each if-case."
@@ -177,6 +173,48 @@ in that location.  Returns the code or list."
 'FOREACH'
 >BIN 'FOREACH' STO
 
+(Read an entire file split into lines.)
+:: "r" `I*.fopen
+  ::
+    { }
+    file `I*.feof `I*.not
+    :: 
+      :: file `I*.freadline `I*.+list file `I*.feof `I*.not ; 
+      REP ;
+    `I*.ift file `I*.fclose ; 
+  { file } `I*.local ;
+'READF' STO
+
+{ :name: READF
+  :args: #1
+  :hint: "Read an entire file and return it as a list of strings, one per line."
+  :table: { { READF Types.String } } }
+I*.stobin
+
+(Split a string around a delimiter.)
+:: SWAP DUP LEN
+  ::
+    (Our list.) {}
+    length
+    ::
+      :: (Our string.) ""
+        :: string idx GET DUP delim ==
+          :: DROP #0 ;
+          :: + #1 ; 
+          IFTE
+          idx #1 + DUP 'idx' STO length < AND ;
+        REP + idx length < ; 
+      REP ;
+    IFT ;
+  { length string delim :idx:#0 } LOCAL ;
+{} STATIC 
+'SPLIT' STO
+
+{ :name: SPLIT
+  :args: #2
+  :hint: "Make a list of all substrings of line 2, separated by the delimiter on line 1."
+  :table: { { SPLIT Types.String Types.String } } }
+I*.stobin
 
 (Read, evaluate, print, loop.)
 ::

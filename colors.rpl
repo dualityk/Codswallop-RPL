@@ -43,6 +43,7 @@ COLOR.csi "1m" + 'COLOR.ANSIBRITE' STO
 #13 COLOR.XTFORE  Types.List PUT
 #14 COLOR.XTFORE  Types.Code PUT
 #251 COLOR.XTFORE Types.Tag PUT
+#136 COLOR.XTFORE Types.Handle PUT
 'COLOR.TYPES' STO
 
 (Show a type coloring legend.)

@@ -83,6 +83,92 @@ def makebinprocs():
   
   ### Input/Output
   
+  # Open file.
+  def x(rt):
+    options = rt.Stack.pop()
+    filename = rt.Stack.pop()
+    try:
+      rt.Stack.push(rtypes.typeio(open(filename.data, options.data)))
+    except:
+      rt.Stack.push(filename)
+      rt.Stack.push(options)
+      rt.ded('Perhaps opening this file was a daydream after all')
+  bins += [['fopen', x]]
+
+  def x(rt):
+    if rt.Stack.pop().eof:
+      rt.Stack.push(rtypes.typeint(1))
+    else:
+      rt.Stack.push(rtypes.typeint(0))
+  bins += [['feof', x]]
+  
+  # Close file.
+  def x(rt):
+    handle = rt.Stack.pop()
+    try:
+      handle.data.close()
+    except:
+      rt.Stack.push(handle)
+      rt.ded('One can only close a file so hard')
+  bins += [['fclose', x]]
+  
+  # Read line from file, but strip newline.
+  def x(rt):
+    handle = rt.Stack.pop()
+    try:
+      string = handle.data.readline(MAXREAD)
+      if not len(string):
+        handle.eof = True
+      rt.Stack.push(rtypes.typestr(string.rstrip('\n')))
+    except:
+      rt.Stack.push(handle)
+      rt.ded('You may read a book, but not this file')
+  bins += [['freadline', x]]
+  
+  # Read some number of characters from a file.
+  def x(rt):
+    chars = rt.Stack.pop()
+    handle = rt.Stack.pop()
+    try:
+      if chars.data > 0 and chars.data < MAXREAD:
+        string = handle.data.read(chars.data)
+        if len(string)<chars.data:
+          handle.eof = True
+      else:
+        rt.Stack.push(rtypes.typestr(handle.data.read(MAXREAD)))
+        if len(string)<MAXREAD:
+          handle.eof = True
+    except:
+      rt.Stack.push(handle)
+      rt.Stack.push(chars)
+      rt.ded('You may read a book, but not this file')
+  bins += [['fread', x]]
+
+  # Write a line to a file, no newline.
+  def x(rt):
+    handle = rt.Stack.pop()
+    text = rt.Stack.pop()
+    try:
+      handle.data.write(text.data)
+    except:
+      rt.Stack.push(text)
+      rt.Stack.push(handle)
+      rt.ded('You may write a friend, but not this file')
+  bins += [['fwriten', x]]
+  
+  # Write a line to a file with newline.
+  def x(rt):
+    handle = rt.Stack.pop()
+    text = rt.Stack.pop()
+    try:
+      handle.data.write(text.data)
+      handle.data.write('\n')
+    except:
+      rt.Stack.push(text)
+      rt.Stack.push(handle)
+      rt.ded('You may write a friend, but not this file')
+  bins += [['fwrite', x]]
+  
   # Display.
   def x(rt):
     print(rt.Stack.pop().disp())
@@ -323,6 +409,11 @@ def makebinprocs():
     tagtype = rt.Types.id['Tag']
     symtypes = [rt.Types.id['Symbol'], rt.Types.id['Function']]
     
+    # For just the first pass, hang onto whatever we make, because the
+    # runtime may need to modify it to point to the *next* firstobj in case
+    # of a tail call.
+    firstone = True
+    
     for i in names:
       if i.typenum in symtypes:
         # If it's a symbol, verify it's a valid one.
@@ -334,12 +425,18 @@ def makebinprocs():
         if thisob is not None:
           nextob = rtypes.typedir(rtypes.typetag(i.data[0], thisob), nextob)
           circname = i.data
+          if firstone:
+            firstone = False
+            lastob = nextob
         else:
           usded('You gotta have '+str(len(names))+' things on the stack!')
           return
       elif i.typenum == tagtype:
         circname = [i.name]
         nextob = rtypes.typedir(i.dup(), nextob)
+        if firstone:
+          firstone = False
+          lastob = nextob
       else:
         usded("Only symbols and tags lead to success")
       # Check for circular references as we go.
@@ -355,7 +452,13 @@ def makebinprocs():
           usded('This directory circulates if you put it there')
           return
     # And queue a new local variable context.
-    rt.newlocall(prog, nextob)
+    
+    # Two ways to call: one if we had no arguments, the other if we did.
+    if firstone:
+      rt.newcall(prog)
+    else:
+      rt.newlocall(prog, nextob, lastob)
+      
   bins += [['local', x]]
   
   

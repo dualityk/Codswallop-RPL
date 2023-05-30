@@ -415,6 +415,24 @@ class typedir(objarchetype):
   def unparse(self, maxdepth=None):
     return "[directory]"
 
+
+# IO type.  Used as handles for files and character devices, probably.
+class typeio(objarchetype):
+  typename = 'Handle'
+  
+  # Python's EOF handling is kind of garbage, but I feex.
+  eof = False
+  def __init__(self, data):
+    self.data = data
+  def __del__(self):
+    try:
+      self.data.close()
+    except:
+      print('By the way, a terrible fate has befallen a forgotten file handle')
+  def unparse(self, maxdepth=-1):
+    return '(I/O handle for '+self.data.name+')'
+
+
 # Tag type.
 # Also a specific purpose thing used for named storage:
 # 'name' is a string, an unqualified name with no periods
@@ -668,7 +686,7 @@ class typebin(objarchetype):
 def baseregistry():
   Types = rpltypes()
   for i in [typebinproc, typeunq, typefloat, typesym, typestr, typerem, 
-            typebin, typedir, typetag, typelst, typecode, typeint]:
+            typebin, typedir, typetag, typelst, typecode, typeint, typeio]:
     Types.register(i)
   return Types
 

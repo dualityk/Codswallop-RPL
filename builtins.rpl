@@ -60,6 +60,67 @@ I*.stobin
 
 ( ### Input/Output)
 
+(Open a file.)
+{ :name: FOPEN
+  :args: #2
+  :hint: "Open a text file for reading or writing."
+  :table:
+  { { ::
+        :: name attr "read" `I*.== "r"
+          :: attr "write" `I*.== "w"
+            :: attr "append" `I*.== "a"
+              :: attr "A file can only be \"read\", \"write\", or \"append\""
+                :: `I*.ded ; `I*.beval ;
+              `I*.ifte ;
+            `I*.ifte ;
+          `I*.ifte 
+  	  `I*.fopen ;
+        { attr name } `I*.local ;
+      Types.String Types.String } } }
+I*.stobin
+
+(Close a file.)
+{ :name: FCLOSE
+  :args: #1
+  :hint: "Close a file."
+  :table: { { I*.fclose Types.Handle } } }
+I*.stobin
+
+(Check if a file is at EOF.)
+{ :name: EOF
+  :args: #1
+  :hint: "Report whether a file is at EOF (if open for write, always #0.)"
+  :table: { { I*.feof Types.Handle } } }
+I*.stobin
+
+(Read some bytes from a file.)
+{ :name: READ
+  :args: #2
+  :hint: "Read n characters from a file (or all of them, if n<1.)"
+  :table: { { I*.fread Types.Handle Types.Integer } } }
+I*.stobin
+
+(Read a line from a file.)
+{ :name: READL
+  :args: #1
+  :hint: "Read a whole line from a file."
+  :table: { { I*.freadline Types.Handle } } }
+I*.stobin
+
+(Write to a file.)
+{ :name: WRITE
+  :args: #2
+  :hint: "Write a string to a file, with a newline."
+  :table: { { I*.fwrite Types.String Types.Handle } } }
+I*.stobin
+
+(Write to a file.)
+{ :name: WRITEN
+  :args: #2
+  :hint: "Write a string to a file, without a newline."
+  :table: { { I*.fwriten Types.String Types.Handle } } }
+I*.stobin
+
 (Display.)
 { :name: DISP
   :args: #1
