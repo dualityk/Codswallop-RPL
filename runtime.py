@@ -205,14 +205,11 @@ class rplruntime:
       self.firstobj = self.firstdir(names)
       if len(self.Calls) and self.Calls[spot][CALL_IP] == len(self.Calls[spot][CALL_CODE].data):
         # When replacing a call, just reset the IP and update our directory.
-        self.Calls[spot][CALL_IP] = 0
-        self.Calls[spot][CALL_CODE] = obj      
-        self.Calls[spot][CALL_CONTEXT] = self.firstobj
+        self.Calls[spot] = [0, obj, self.firstobj]
       else:
         if spot < CALLDEPTH:
           # When adding a call, make a new first directory object
           # and update our firstobj pointer.
-          self.firstobj = self.firstdir(names)
           self.Calls.append([0, obj, self.firstobj])
         else:
           self.ded('You asked for '+str(CALLDEPTH)+' recursions and not a penny more')

@@ -457,7 +457,7 @@ def makebinprocs():
     if firstone:
       rt.newcall(prog)
     else:
-      rt.newlocall(prog, nextob, lastob)
+      rt.newlocall(prog, nextob)
       
   bins += [['local', x]]
   
