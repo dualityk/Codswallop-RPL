@@ -328,6 +328,7 @@ I*.stobin
     { I*.+float Types.Float   Types.Float }
     { I*.+float Types.Integer Types.Float }
     { I*.+float Types.Float   Types.Integer }
+    { I*.+list  Types.List    Types.List }
     { I*.list+  Types.Any     Types.List }
     { I*.+str   Types.String  Types.Any }
     { I*.+list  Types.List    Types.Any }
