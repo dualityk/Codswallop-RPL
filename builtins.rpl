@@ -203,13 +203,6 @@ I*.stobin
 
 ( ### Disk store )
 
-(Write object to disk.)
-{ :name: >DSK
-  :args: #2
-  :hint: "Write an object to disk.  In the case of a quoted symbol, a matching STO will be appended."
-  :table: { { I*.>dsk Types.Any Types.String } } }
-I*.stobin
-
 (Parse and evaluate from disk.)
 { :name: DSK>
   :args: #1

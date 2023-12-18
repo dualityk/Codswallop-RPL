@@ -100,7 +100,7 @@ ANSI.codes.csi "2J" + ANSI.codes.csi + ";H" + 'ANSI.codes.clear STO
   (Get a color for it according to type.)
   SWAP colors SWAP GETE SWAP +
   (And shut off the color, insert trailing space, and add our word.)
-  ANSI.codes.nofore + " " + + 'word STO
+  nocolor + " " + + 'word STO
   write ;
 'ANSI.ize.default STO
 
@@ -117,7 +117,7 @@ ANSI.codes.csi "2J" + ANSI.codes.csi + ";H" + 'ANSI.codes.clear STO
    its contents.)
   ':: depth #1 - ':: izer ; { depth } LOCAL ;
   (Or forget the contents and gently refuse to dig further.)
-  ':: DROP word "…" + ANSI.codes.nofore + " " + 'word STO 
+  ':: DROP word "…" + nocolor + " " + 'word STO 
      length #1 + 'length STO write ;
   IFTE ;
 'ANSI.ize.tag STO
@@ -147,7 +147,7 @@ ANSI.codes.csi "2J" + ANSI.codes.csi + ";H" + 'ANSI.codes.clear STO
     (Finally, write out our closing bracket, again in list color, and a
      newline to keep things tidy.)
     word colors Types.List GETE + "}" + 
-    ANSI.codes.nofore + " " + 'word STO
+    nocolor + " " + 'word STO
     length #2 + 'length STO ;
   { indent depth } LOCAL 
   write ;
@@ -169,7 +169,7 @@ ANSI.codes.csi "2J" + ANSI.codes.csi + ";H" + 'ANSI.codes.clear STO
     (Finally, write out our closing bracket, again in list color, and a
      newline to keep things tidy.)
     word colors Types.Code GETE + "; " + 
-    ANSI.codes.nofore + 'word STO
+    nocolor + 'word STO
     length #2 + 'length STO
     write ;
   { indent depth } LOCAL
@@ -205,7 +205,7 @@ ANSI.codes.csi "2J" + ANSI.codes.csi + ";H" + 'ANSI.codes.clear STO
   ':: ANSI.ize.dirinnards ;
   { indent } LOCAL
   word colors Types.Directory GETE + "]" +
-  ANSI.codes.nofore + " " + 'word STO write
+  nocolor + " " + 'word STO write
 ;
 'ANSI.ize.dir STO
 
@@ -239,7 +239,7 @@ somehow, but if it at least prints anything, that'll be keen.)
           (Colorize the entry name with that color.)
 	  ':: word SWAP + names idx GET >STR DUP LEN #2 + length + 'length STO ;
           IFTE
-          + ANSI.codes.nofore + 'word STO
+          + nocolor + 'word STO
           (And do the loop stuff.)
           idx #1 + DUP 'idx STO
           max < DUP
@@ -276,7 +276,7 @@ somehow, but if it at least prints anything, that'll be keen.)
   ':: size (If there is anything to git, that is.)
     '::
       ':: "Line " ANSI.codes.white + size idx - + 
-        ANSI.codes.nofore + ": " +
+        nocolor + ": " +
         'word STO #7 'length STO
         list idx GET izer newline
         idx #1 + DUP 'idx STO size < ;
@@ -343,6 +343,7 @@ somehow, but if it at least prints anything, that'll be keen.)
     :stacklimit: ANSI.default.stack
     :izers: ANSI.default.izers
     :colors: ANSI.default.colors
+    :nocolor: ANSI.codes.nofore
     :word: ""
     :length: #0
     :text: ""
@@ -408,7 +409,7 @@ ANSI STATICN 'ANSI STO
           newline
           "In call " size idx - + ": " + 
           DUP LEN 'length STO 
-          ANSI.codes.white SWAP + ANSI.codes.nofore + 'word STO
+          ANSI.codes.white SWAP + nocolor + 'word STO
           (Then grab our line and display it.)
           core idx GET OBJ> DROP
           ':: izer newline ; 

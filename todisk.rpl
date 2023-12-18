@@ -1,0 +1,111 @@
+( CODSWALLOP RPL, a zen garden
+  #####################################################
+  Object to disk writer )
+
+(This module builds on the ANSI colors framework to store parse-friendly
+ versions of objects to disk.)
+
+(Modify the default izers list to backquote builtins and display the full
+ contents of directories, both functionality added by this module.)
+ANSI.default.izers 'ANSI.ize.dirdeep Types.Directory PUT
+'ANSI.ize.backquote Types.Builtin PUT
+'ANSI.default.diskizers STO
+
+(Make a set of blank colors, so we aren't writing unparseable technicolor
+ to disk.)
+{ "" } Types.n LEN *
+'ANSI.default.nocolors STO
+
+(Also add code to the addtype function to keep diskizers abreast of user
+ types.)
+'ANSI.addtype RCL
+':: { "" } Types.n LEN * 'ANSI.default.nocolors STO
+  ANSI.default.diskizers DUP #0 GET + 'ANSI.default.diskizers STO ;
++ 'ANSI.addtype STO
+
+(  Additional ANSI-izers useful for disk writing )
+
+(Colorize a directory and delve into all its contents.)
+'::
+  word colors Types.Directory GETE + "[dir: " + 'word STO
+  length #6 + 'length STO write
+  indent tab +
+  ':: newline ANSI.ize.dirdeepinnards ;
+  { indent } LOCAL
+  word colors Types.Directory GETE + "]" +
+  nocolor + " " + 'word STO write
+;
+STATICN
+'ANSI.ize.dirdeep STO
+
+(Colorize the contents of a directory.  This should probably also recurse
+somehow, but if it at least prints anything, that'll be keen.)
+'::
+  obj DUP 'obj STO DIR DUP LEN
+  '::
+    depth
+    ':: max
+      ':: 
+        '::
+          (Pull the actual object in question out of the dir to get its type.) 
+          'obj names idx GET + DEREF izer newline
+          (And do the loop stuff.)
+          idx #1 + DUP 'idx STO max < ;
+        REP ;
+      IFT ;
+    ':: word "… " + 'word STO
+       length #3 + 'length STO
+       write ;
+    IFTE ;
+  { max names :idx: #0 } LOCAL ;
+STATICN
+'ANSI.ize.dirdeepinnards STO
+
+(This one adds a backquote to builtins so they're preprocessed on load.)
+'::
+  word "`" + 'word STO
+  length #1 + 'length STO
+  ANSI.ize.default ;
+STATICN
+'ANSI.ize.backquote STO
+
+(The actual write routines, one each for symbols and everything else:)
+
+(This one will write any old thing to disk.)
+'::
+  "append" FOPEN
+  ':: izer newline handle FCLOSE ;
+  { handle 
+    :colors: ANSI.default.nocolors
+    :izers: ANSI.default.diskizers
+    :display: :: handle WRITE ; 
+    :nocolor: "" }
+  ANSI.default.environment ;
+STATICN
+'I*.todisk STO
+
+(And this will write a symbol's contents to disk, quoting it and including
+ the name and a STO, so the object will end up right back where it came
+ from.)
+'::
+  "append" FOPEN
+  ':: 'obj RCL RCL QUOTE izer newline 
+     'obj RCL QUOTE izer
+     'STO izer newline handle FCLOSE ;
+  { handle obj 
+    :colors: ANSI.default.nocolors
+    :izers: ANSI.default.diskizers
+    :display: :: handle WRITE ; 
+    :nocolor: "" }
+  ANSI.default.environment ;
+STATICN
+'I*.symtodisk STO
+
+(Condense all that stuff into a nice >DSK builtin.)
+{ :name: >DSK
+  :args: #2
+  :hint: "Append an object to a file.  If the object is a symbol, it's recalled, quoted, and written with a matching STO."
+  :table:
+    { { I*.symtodisk Types.Symbol Types.String }
+      { I*.todisk Types.Any Types.String } } }
+I*.stobin

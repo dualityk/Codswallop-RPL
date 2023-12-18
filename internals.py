@@ -243,23 +243,6 @@ def makebinprocs():
   bins += [['dup', x]]
   
   ### Disk store
-  # Write object to disk.
-  def x(rt):
-    name = rt.Stack.pop()
-    thing = rt.Stack.pop()
-    try:
-      with open(name.data, 'w') as file:
-        if thing.typenum == rt.symtype: 
-          printable = rt.rcl(thing.data).unparse(maxdepth=-1)+" "+thing.unparse()+" STO\n"
-        else:
-          # Maxdepth of -1 ensures full recursion.
-          printable = thing.unparse(maxdepth=-1)+'\n'
-        file.write(printable)
-        file.close()
-    except:
-      rt.Stack.push(thing)
-      rt.ded('Whatever your plan was, it has failed to materialize')  
-  bins += [['>dsk', x]]
 
   # Parse and evaluate from disk.
   def x(rt):

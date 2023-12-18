@@ -84,7 +84,7 @@ I*.isded
  bits to hand.)
 ':: 'I* RM 'SAFE RM ; 'SAFE STO
 
-(This is what you'd comment out: ) (SAFE)
+(This is what you'd comment out: ) SAFE
 
 (And hand off to a commandline program or to the user.)
 

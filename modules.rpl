@@ -11,4 +11,5 @@
   "static"      (Source-source compiler.)
   "rpl" 	(The standard library and REPL.)
   "cobs" 	(Codswallop Objects, an OOP implementation.)
-  "colors" 	(ANSI type highlighting and other technicolor pleasantries.) }
+  "colors" 	(ANSI type highlighting and other technicolor pleasantries.) 
+  "todisk"      (Some code to implement a nice version of >DSK.) }
