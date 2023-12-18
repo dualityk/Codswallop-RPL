@@ -11,10 +11,10 @@
 (First, here's a thing which makes the rest of this code easier to read.
  It takes a list of tags and uses those to prepare and store the builtins.
  Sort of like named arguments, by abusing local variables.)
-::
-  :: table args hint 'name' I*.rcl I*.>bin I*.binhook 'name' I*.rcl I*.sto ;
+'::
+  ':: table args hint 'name I*.rcl I*.>bin I*.binhook 'name I*.rcl I*.sto ;
   I*.swap I*.local ;
-'I*.stobin' I*.sto
+'I*.stobin I*.sto
 
 
 ( ### Temporaries )
@@ -66,11 +66,11 @@ I*.stobin
   :hint: "Open a text file for reading or writing."
   :table:
   { { ::
-        :: name attr "read" `I*.== "r"
-          :: attr "write" `I*.== "w"
-            :: attr "append" `I*.== "a"
-              :: attr "A file can only be \"read\", \"write\", or \"append\""
-                :: `I*.ded ; `I*.beval ;
+        ':: name attr "read" `I*.== "r"
+          ':: attr "write" `I*.== "w"
+            ':: attr "append" `I*.== "a"
+              ':: attr "A file can only be \"read\", \"write\", or \"append\""
+                ':: `I*.ded ; `I*.beval ;
               `I*.ifte ;
             `I*.ifte ;
           `I*.ifte 
@@ -225,7 +225,6 @@ I*.stobin
   :hint: "Write an object into the named store, either to a local variable if it exists, or to the main store (or into a tag)."
   :table:
   { { I*.sto   Types.Any Types.Symbol }
-    { I*.sto   Types.Any Types.Function }
     { I*.stoto Types.Any Types.Tag } } }
 I*.stobin
 
@@ -235,7 +234,6 @@ I*.stobin
   :hint: "Recall an object from the most local named store that has it, or extract an object from a tag."
   :table:
   { { I*.rcl     Types.Symbol }
-    { I*.rcl     Types.Function }
     { I*.rclfrom Types.Tag } } }
 I*.stobin
 
@@ -244,8 +242,7 @@ I*.stobin
   :args: #1
   :hint: "Return de reference of the most local tag for this symbol in the named store."
   :table:
-  { { I*.deref Types.Symbol }
-    { I*.deref Types.Function } } }
+  { { I*.deref Types.Symbol } } }
 I*.stobin
 
 (Does it exist?)
@@ -253,8 +250,7 @@ I*.stobin
   :args: #1
   :hint: "Check to see if a symbol exists in the current named store (including locals.)"
   :table:
-  { { I*.exists Types.Symbol }
-    { I*.exists Types.Function } } }
+  { { I*.exists Types.Symbol } } }
 I*.stobin
 
 (Erase name)
@@ -262,8 +258,7 @@ I*.stobin
   :args: #1
   :hint: "Remove an object from the most local named store."
   :table:
-  { { I*.rm Types.Symbol }
-    { I*.rm Types.Function } } }
+  { { I*.rm Types.Symbol } } }
 I*.stobin
 
 (New local context)
@@ -328,12 +323,13 @@ I*.stobin
     { I*.+float Types.Float   Types.Float }
     { I*.+float Types.Integer Types.Float }
     { I*.+float Types.Float   Types.Integer }
-    { I*.+list  Types.List    Types.List }
+    { I*.catlist  Types.List    Types.List }
     { I*.list+  Types.Any     Types.List }
     { I*.+str   Types.String  Types.Any }
     { I*.+list  Types.List    Types.Any }
     { I*.+str   Types.Any     Types.String }
-    { I*.+code  Types.Code    Types.Code } } }
+    { I*.catcode  Types.Code    Types.Code } 
+    { I*.+sym   Types.Symbol  Types.Symbol } } }
 I*.stobin
 
 (Multiply)
@@ -406,7 +402,7 @@ I*.stobin
   :hint: "Build a new built-in from a hint string, symbol name, an argument count, and a dispatch table in the form of:
   { { code objtype1 objtype2 ... } ... }"
   :table:
-  { { :: `I*.>bin `I*.binhook ; 
+  { { :: `I*.>bin `I*.binhook ;
       Types.List Types.Integer Types.String Types.Symbol } } }
 I*.stobin
 
@@ -423,8 +419,7 @@ I*.stobin
   :args: #2
   :hint: "Prepare a new tag object from any object and a non-dotted symbol."
   :table:
-  { { I*.>tag Types.Any Types.Symbol }
-    { I*.>tag Types.Any Types.Function } } }
+  { { I*.>tag Types.Any Types.Symbol } } }
 I*.stobin
 
 (Make directory)
@@ -475,6 +470,13 @@ I*.stobin
   :table: { { I*.>asc Types.Integer } } }
 I*.stobin
 
+(Anything to quote)
+{ :name: QUOTE
+  :args: #1
+  :hint: "Quote an object."
+  :table: { { I*.>quote Types.Any } } }
+I*.stobin
+
 (String to objects)
 { :name: >OBJ
   :args: #1
@@ -485,21 +487,9 @@ I*.stobin
 (To symbol)
 { :name: >SYM
   :args: #1
-  :hint: "Turn a string or function into a quoted symbol."
+  :hint: "Turn a string into a symbol."
   :table:
-  { { I*.str>sym Types.String }
-    { I*.func>sym Types.Function }
-    { (Nop) Types.Symbol } } }
-I*.stobin
-
-(To function)
-{ :name: >FUNC
-  :args: #1
-  :hint: "Turn a string or symbol into an unquoted symbol."
-  :table:
-  { { I*.str>func Types.String }
-    { I*.sym>func Types.Symbol }
-    { (Nop) Types.Function } } }
+  { { I*.str>sym Types.String } } }
 I*.stobin
 
 (To string)
@@ -611,8 +601,7 @@ I*.stobin
   { { I*.len Types.List }
     { I*.len Types.String }
     { I*.len Types.Code } 
-    { I*.len Types.Symbol }
-    { I*.len Types.Function } } }
+    { I*.len Types.Symbol } } }
 I*.stobin
 
 (Pop)
@@ -663,6 +652,15 @@ I*.stobin
   { { I*.subs Types.String Types.Integer Types.Integer }
     { I*.subs Types.List   Types.Integer Types.Integer }
     { I*.subs Types.Code   Types.Integer Types.Integer } } }
+I*.stobin
+
+(Get from list and evaluate)
+{ :name: GETE
+  :args: #2
+  :hint: "Fetch an object from a list or code and evaluate it."
+  :table:
+  { { I*.gete Types.List Types.Integer }
+    { I*.gete Types.Code Types.Integer } } }
 I*.stobin
 
 (Get from composite)

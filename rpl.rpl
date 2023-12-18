@@ -5,163 +5,88 @@
 (This is the standard library, containing the most useful routines not
  implemented in the interpreter itself, including the REPL.)
 
-(HAS: See if a value exists in a list.  This doesn't evaluate any
- user code, so it was safe to implement with internals for a smidge
- of extra speed.)
-:: 
-  'tag' `I*.>tag
-  `I*.swap `I*.dup `I*.len #0
-  :: idx length `I*.<
-    :: 'list' `I*.rcl idx `I*.get term `I*.rclfrom `I*.==
-      #1
-      :: idx #1 `I*.+int 'idx' `I*.sto loop ;
-      `I*.ifte ;
-    #0 
-    `I*.ifte ; 
-  `I*.dup { loop idx length list term } `I*.local ;
-'I*.has' STO
-
-{ :name: HAS
-  :args: #2
-  :hint: "Check to see if a list on line 2 contains something like the item on line 1."
-  :table: { { I*.has Types.List Types.Any } } }
-I*.stobin
-
-
-(STATIC: Dereference all builtins from a list, except those in the
- exception table.  Like HAS, implemented with internals for speed.)
-::
-  :: 
-    `I*.swap `I*.dup `I*.len #0
-    :: idx length `I*.<
-      :: (List, list item, item type.)
-        'list' `I*.rcl `I*.dup idx `I*.get `I*.dup `I*.type 
-        (If it's a composite type, recurse.)
-        `I*.dup `Types.List `I*.== `I*.swap `Types.Code `I*.== `I*.or
-        :: exceptions recurse idx `I*.put 'list' `I*.sto ;
-        :: (If it's an unquoted symbol...)
-          `I*.dup `I*.swap `I*.type `Types.Function `I*.== 
-          :: (Make sure it's not an exception, and that it exists..)
-            `I*.dup `I*.dup exceptions `I*.swap HAS `I*.not 
-            `I*.swap `I*.exists `I*.and
-            :: (Pull it, is it a built-in or an internal?)
-              `I*.rcl `I*.dup `I*.type `I*.dup `Types.Builtin `I*.== 
-              `I*.swap `Types.Internal `I*.== `I*.or
-              :: (Yes, so store the thing itself.)
-                idx `I*.put 'list' `I*.sto ; 
-              'drop2' (No, clear the stack.)
-              `I*.ifte ;
-            'drop2' (No, clear the stack.)
-            `I*.ifte ;
-          'drop2' (No, clear the stack.)
-          `I*.ifte ;
-        `I*.ifte idx #1 `I*.+int 'idx' `I*.sto loop ;
-      :: 'list' `I*.rcl ; (If there aren't any more things, return the list.)
-      `I*.ifte ;
-    `I*.dup { loop idx length list exceptions } `I*.local ;
-`I*.dup { recurse :drop2::: `I*.drop `I*.drop ; } `I*.local ;
-DUP 'I*.static' STO {} I*.static 'I*.static' STO
-
-{ :name: STATIC
-  :args: #2
-  :hint: "Except for the symbols in the list on line 1, dereference all builtins in the program on line 2."
-  :table:
-  { { I*.static Types.List Types.List }
-    { I*.static Types.Code Types.List } } }
-I*.stobin
-
-
-(REP using code modification.
- This version just appends recursion, duplicates the whole program
- to store itself in its own local variable, and goes to town.)
-{ { :: 
-      :: '_rep' `IFT ; `I*.+code `I*.dup 
-      { _rep } `I*.local ; Types.Code } }
-#1 "Repeatedly evaluate a code object until it returns 0."
-'REP' >BIN 'REP' STO
-
-
 (CASE.  Takes a list in the form of:
  { { if-case then-case }
    { if-case then-case }
    ... } )
 { (case goes here) Types.List }
-::
-  ::
+'::
+  '::
     _cases LEN (Don't even try if there's no cases to check.)
-    ::
-      :: (Open our case, evaluate the if block.)
+    '::
+      ':: (Open our case, evaluate the if block.)
         _cases _index GET #0 GET EVAL 
         (Keep track of the result for ourselves; if needed, fetch then block.) 
-        DUP NOT '_keeptry' STO 
-        :: _cases _index GET #1 GET ; IFT
+        DUP NOT '_keeptry STO 
+        ':: _cases _index GET #1 GET ; IFT
         (Now increment our index and see if it's time to repeat.)
-        _index #1 + DUP '_index' STO
+        _index #1 + DUP '_index STO
         _cases LEN < _keeptry AND ;
       REP
       (If we fetched a then block, evaluate it here as a tail call.)
-      _keeptry NOT 'EVAL' IFT ;
+      _keeptry NOT 'EVAL IFT ;
     IFT ;
   { :_index:#0 :_keeptry:#1 _cases :ELSE:#1 }
   LOCAL ;
 {} STATIC #0 PUT #1 >LST
 #1 "Takes a case list in the form of { { if-case then-case } ... } and evaluates only the first match."
-'CASE' >BIN
-'CASE' STO
+'CASE >BIN
+'CASE STO
 
 (KCASE: supply a constant for each case.  Takes two arguments:
  the test value and the CASE style list.)
 { (kcase goes here) `Types.Any `Types.List }
-::
-  ::
+'::
+  '::
     _cases LEN (Don't even try if there's no cases to check.)
-    ::
-      :: (Open our case, recall our constant, and evaluate the if block.)
+    '::
+      ':: (Open our case, recall our constant, and evaluate the if block.)
         _k _cases _index GET #0 GET EVAL 
         (Keep track of the result for ourselves; if needed, fetch then block.) 
-        DUP NOT '_keeptry' STO 
-        :: _cases _index GET #1 GET ; IFT
+        DUP NOT '_keeptry STO 
+        ':: _cases _index GET #1 GET ; IFT
         (Now increment our index and see if it's time to repeat.)
-        _index #1 + DUP '_index' STO
+        _index #1 + DUP '_index STO
         _cases LEN < _keeptry AND ;
       REP
       (If we fetched a then block, evaluate it here as a tail call.)
-      _keeptry NOT 'EVAL' IFT ;
+      _keeptry NOT 'EVAL IFT ;
     IFT ;
   { :_index:#0 :_keeptry:#1 _cases _k :ELSE::: DROP #1 ; }
   LOCAL ;
 {} STATIC #0 PUT #1 >LST
 #2 "Modified CASE which takes two arguments, a test value and a CASE list.  Supplies the constant for each if-case."
-'KCASE' >BIN
-'KCASE' STO
+'KCASE >BIN
+'KCASE STO
 
-:: (PROFILE: Figure evaluation time for an object.)
-  EPOCH :: EVAL EPOCH _profiletime - ; 
+':: (PROFILE: Figure evaluation time for an object.)
+  EPOCH ':: EVAL EPOCH _profiletime - ; 
   { _profiletime } LOCAL ;
 {} STATIC
-'PROFILE' STO
+'PROFILE STO
 
-:: (PAUSE: Press enter to continue.)
+':: (PAUSE: Press enter to continue.)
   "(Enter) " PROMPT DROP ;
-'PAUSE' STO
+'PAUSE STO
 
 (FOREACH: For each item in list or code, push it to the stack and evaluate 
  a thing. For example, 0 { 1 2 3 } '+' FOREACH evaluates 0 1 + 2 + 3 +.
  An update callback will store an item back to that spot in the list.)
 
-:: SWAP DUP LEN
-  :: '_list' RCL SWAP index PUT '_list' STO ;
-  :: '_list' RCL
-    index #1 + DUP 'index' STO
-    _length >=
-    :: BAIL ; IFT 
-    index GET _evaluator
+':: SWAP DUP LEN SWAP QUOTE
+  ':: list
+    idx #1 + DUP 'idx STO
+    length >=
+    ':: BAIL ; IFT 
+    idx GET evaluator
     SELF EVAL ;
-  { update _length _list _evaluator :index:#-1 } LOCAL 
+  { :update: :: list SWAP idx PUT QUOTE 'list STO ;
+    :idx: #-1
+    list length evaluator } LOCAL 
   (This comment prevents tail call optimization, which can cause unexpected
    behavior if the evaluator code recurses.) ;
 {} STATIC
-'FOREACH' STO
+'FOREACH STO
 
 (Now make it a builtin.)
 { { FOREACH Types.List Types.Any }
@@ -170,45 +95,27 @@ I*.stobin
 "For each element of code or a list in line 2, place the element on the
 stack and evaluate line 1.  'update' can be called to store a new element
 in that location.  Returns the code or list."
-'FOREACH'
->BIN 'FOREACH' STO
-
-(Read an entire file split into lines.)
-:: "r" `I*.fopen
-  ::
-    { }
-    file `I*.feof `I*.not
-    :: 
-      :: file `I*.freadline `I*.+list file `I*.feof `I*.not ; 
-      REP ;
-    `I*.ift file `I*.fclose ; 
-  { file } `I*.local ;
-'READF' STO
-
-{ :name: READF
-  :args: #1
-  :hint: "Read an entire file and return it as a list of strings, one per line."
-  :table: { { READF Types.String } } }
-I*.stobin
+'FOREACH
+>BIN 'FOREACH STO
 
 (Split a string around a delimiter.)
-:: SWAP DUP LEN
-  ::
+':: SWAP DUP LEN
+  '::
     (Our list.) {}
     length
-    ::
-      :: (Our string.) ""
-        :: string idx GET DUP delim ==
-          :: DROP #0 ;
-          :: + #1 ; 
+    '::
+      ':: (Our string.) ""
+        ':: string idx GET DUP delim ==
+          ':: DROP #0 ;
+          ':: + #1 ; 
           IFTE
-          idx #1 + DUP 'idx' STO length < AND ;
+          idx #1 + DUP 'idx STO length < AND ;
         REP + idx length < ; 
       REP ;
     IFT ;
   { length string delim :idx:#0 } LOCAL ;
 {} STATIC 
-'SPLIT' STO
+'SPLIT STO
 
 { :name: SPLIT
   :args: #2
@@ -217,23 +124,23 @@ I*.stobin
 I*.stobin
 
 (Read, evaluate, print, loop.)
-::
+'::
   (Clear errors and prompt for text.)
   UNDED #1 DEDCONT
   (This loop lets multiple lines be entered, with some helpful prompts.)
   "" (our string)
   #0 (line counter)
-  ::
-    ::
-      cont DUP #1 + 'cont' STO  (Increment our line counter)
+  '::
+    '::
+      cont DUP #1 + 'cont STO  (Increment our line counter)
       "..?  " ":: " IFTE PROMPT  (Make a prompt based upon it)
       ISDED
-      :: DROP DROP #0 ; (Error case)
-      :: DUP #1 RIGHT "\\" ==
+      ':: DROP DROP #0 ; (Error case)
+      ':: DUP #1 RIGHT "\\" ==
         (Strip backslash if one exists, add newline and ask for more.)
-        :: DUP LEN #1 - LEFT + #10 >ASC + #1 ;
+        ':: DUP LEN #1 - LEFT + #10 >ASC + #1 ;
         (Otherwise, add this line to our thing and stop repeating.)
-        :: + #0 ;
+        ':: + #0 ;
         IFTE ;
       IFTE ;
     REP ;
@@ -241,21 +148,21 @@ I*.stobin
   LOCAL
   (Now, see if we got through it without ctrl-c.)
   ISDED
-  :: (Yes we're dead: bail.) 
+  ':: (Yes we're dead: bail.) 
     DROP "" DISP "See you space cowboy..." DISP BAIL ; 
-  :: (No, let's try to parse what we got.)
+  ':: (No, let's try to parse what we got.)
     " ;" + ":: " SWAP + >OBJ ISDED 
-    :: (If it didn't work out, drop the leftovers and loop.) 
+    ':: (If it didn't work out, drop the leftovers and loop.) 
       DROP ;
-    :: (If it did work, turn errors back on and evaluate what we got.)
+    ':: (If it did work, turn errors back on and evaluate what we got.)
       #0 DEDCONT EVAL ;
     IFTE ;
   IFTE 
   SSTOFF (Don't let SST step through the REPL.)
-  (Now print our stack.  If some fancypants color is available, we'll use it.)
+  (Now print our stack if some fancypants color is available.)
   "" DISP
-  'COLOR.STACK' EXISTS 'COLOR.STACK' 
-  :: STACK "Stack: " SWAP + DISP ; IFTE
+  'ANSI.stack EXISTS 'ANSI.stack 
+  IFT
   REPL ;
 {} STATIC
-'REPL' STO
+'REPL STO

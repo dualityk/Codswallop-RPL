@@ -16,7 +16,7 @@ class rplruntime:
     self.Types = types
 
     # Some helpful type constants.
-    self.symtypes = [self.Types.id['Symbol'], self.Types.id['Function']]
+    self.symtype = self.Types.id['Symbol']
     self.dirtype = self.Types.id['Directory']
     
     # Error state.  The caller string is generally set by builtins, and
@@ -121,7 +121,7 @@ class rplruntime:
       # Fetch next object from current clutches.
       line = self.Calls[len(self.Calls)-1]
       nextobj = line[CALL_CODE].data[line[CALL_IP]]
-      nexteval = nextobj.rteval
+      nexteval = nextobj.eval
 
       # Increment IP for this context.
       line[CALL_IP] += 1
@@ -167,7 +167,7 @@ class rplruntime:
 
   # Evaluate one thing until it returns None. rs()' single stepper uses this,
   # and it's identical to the free-running runtime above.  It might be useful
-  # for internals in the future.  Thing should be object.eval or object.rteval.
+  # for internals in the future.  Thing should be object.eval.
   def evalone(self, thing):
     while thing is not None:
       thing = thing(self)
@@ -323,7 +323,7 @@ class rplruntime:
       dirtop = dirtop.next
       while dirtop is not self.lastobj:
         # If we find a symbol, return true if circsym says it circulates.
-        if dirtop.tag.obj.typenum in self.symtypes:
+        if dirtop.tag.obj.typenum == self.symtype:
           if self.circsym(prefix+dirtop.tag.obj.data):
             return True
         # And if we find another directory, recurse and return true if
@@ -349,7 +349,7 @@ class rplruntime:
         return False
       # If the object we recalled is a symbol, we'll check for circulation
       # and loop.  If we got to a non-symbolic object, there is no problem.
-      if symbol.typenum in self.symtypes:
+      if symbol.typenum == self.symtype:
         # If the thing our thing points to is in this chain, something
         # is circulating, even if it isn't what we're storing.
         if symbol.data in names:

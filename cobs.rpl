@@ -11,76 +11,85 @@
 #2
 "Evaluate code within a new context where a user type's contents are
 available as a special local variable."
-'METH' >BIN 'METH' STO
+'METH >BIN 'METH STO
 
 
 (Register a new data type.)
-{ { :: 
-      :: >TAG 'name' RCL DUP LEN #1 >
-        :: "Type names can't have dots" DED ; IFT
-        DUP Types.n SWAP >FUNC >STR HAS
+{ { ::
+      ':: 'name RCL DUP LEN #1 >
+        ':: "Type names can't have dots" DED ; IFT
+        DUP Types.n SWAP >STR HAS
         (Only register a fresh, unique type.)
-        :: "That type already exists, my guy/gal" DED ;
-        :: `I*.regtype 
-          'METH' EXISTS
+        ':: "That type already exists, my guy/gal" DED ;
+        ':: `I*.regtype 
+          'METH EXISTS
           (Hook the method call to accomodate our new type.)
-          :: :x:`I*.tlocal RCL SWAP Types.Code #3 >LST #1 >LST
-            'METH' RCL HOOK ;
-          'DROP' IFTE ; 
+          ':: :x:`I*.tlocal RCL SWAP Types.Code #3 >LST #1 >LST
+            'METH RCL HOOK ;
+          'DROP IFTE ; 
         IFTE 
-        (As a public service, add one to our list of highlight colors.)
-        'COLOR.TYPES' EXISTS
-        :: COLOR.TYPES "" + 'COLOR.TYPES' STO ;
+        (As a public service, add defaults to our highlighter.)
+        'ANSI.addtype EXISTS
+        'ANSI.addtype
+        IFT
+        (And to the compiler.)
+        'Static.addtype EXISTS
+        'Static.addtype
         IFT ;
       { name } LOCAL ;
-     Types.Any Types.Symbol Types.Symbol } }
-#3
+     Types.Tag Types.Symbol } }
+#2
 "Register a new data type from a prototype object, a symbol, and a type name.
 The type name must not already exist.  The symbol can be any un-dotted name,
 and is used as the 'self' name within the object's methods."
-'>TYPE'
->BIN '>TYPE' STO
+'>TYPE
+>BIN '>TYPE STO
 
 
 (Automate a closure by dereferencing all unquoted symbols of the form [sym],
  at least if that bracketed symbol is currently available.)
-::
+'::
   SWAP DUP LEN #0
   (Mogrify: extract a symbol and return either it or the dereferenced version of it.)
-  :: >STR DUP LEN
-    :: (First, could it possibly be a bracketed symbol?)
+  ':: >STR DUP LEN
+    ':: (First, could it possibly be a bracketed symbol?)
       original >OBJ length #2 >
-      :: (It could be, but is it?)
+      ':: (It could be, but is it?)
         original #1 RIGHT "]" ==
         original #0 GET "[" == AND
-        :: (It is, but is it valid?)
+        ':: (It is, but is it valid?)
           original #1 length #2 - SUBS >OBJ DUP EXISTS
-          :: SWAP DROP DEREF ;
-          'DROP'
+          ':: SWAP DROP DEREF ;
+          'DROP
           IFTE ;
         IFT ; 
       IFT ;
     { length original } LOCAL ;
 
-  :: idx length <
-    :: 'list' RCL DUP idx GET DUP TYPE (List, list item, item type.)
+  ':: idx length <
+    ':: 'list RCL DUP idx GET DUP TYPE (List, list item, item type.)
       DUP Types.List == SWAP Types.Code == OR (If it's a composite type, recurse.)
-      :: exceptions CLOSE idx PUT 'list' STO ;
-      :: DUP TYPE Types.Function == (If it's an unquoted symbol...)
-        :: DUP exceptions SWAP >STR HAS NOT 
+      ':: exceptions CLOSE idx PUT 'list STO ;
+      ':: DUP TYPE Types.Symbol == (If it's an unquoted symbol...)
+        ':: DUP exceptions SWAP >STR HAS NOT 
           (Make sure it's not an exception.)
-          :: mogrify idx PUT 'list' STO ;
-          :: DROP DROP ;
+          ':: mogrify idx PUT 'list STO ;
+          ':: DROP DROP ;
           IFTE ;
-        :: DROP DROP ;
+        ':: DROP DROP ;
         IFTE ;
-      IFTE idx #1 + 'idx' STO loop ;
-    :: 'list' RCL ; (If there aren't any more things, return the list.)
+      IFTE idx #1 + 'idx STO loop ;
+    ':: 'list RCL ; (If there aren't any more things, return the list.)
     IFTE ;
   DUP { loop mogrify idx length list exceptions } LOCAL ;
-DUP 'CLOSE' STO {} STATIC 'CLOSE' STO
+DROP
+
+(DUP 'CLOSE STO {} STATIC 'CLOSE STO
 { { CLOSE `Types.List `Types.List } { CLOSE `Types.Code `Types.List } }
 #2
 "Prepare a closure by dereferencing all unquoted symbols of the form [sym], except those in the exception list."
-'CLOSE'
->BIN 'CLOSE' STO
+'CLOSE
+>BIN 
+'CLOSE STO)
+(CLOSE needs to be rewritten to support quote objects, inter alia.)
+

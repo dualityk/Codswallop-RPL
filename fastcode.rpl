@@ -1,0 +1,61 @@
+( CODSWALLOP RPL, a zen garden
+  #####################################################
+  Fast code )
+
+(This is an early-loaded standard library, containing routines mostly
+ written with internals, for things not requiring the elaborate type
+ checking normally employed.)
+
+(REP: repeat, using code modification.
+ This version just appends recursion, duplicates the whole program
+ to store itself in its own local variable, and goes to town.)
+{ :name: REP
+  :args: #1
+  :hint: "Repeatedly evaluate a code object until it returns 0." 
+  :table:
+  { { :: 
+        ':: '_rep `IFT ; 
+        `I*.catcode `I*.dup 
+        { _rep } `I*.local ; Types.Code } } }
+I*.stobin
+
+(HAS: See if a value exists in a list.  This doesn't evaluate any
+ user code, so it was safe to implement with internals for a smidge
+ of extra speed.)
+':: 
+  'tag `I*.>tag
+  `I*.swap `I*.dup `I*.len #0
+  ':: idx length `I*.<
+    ':: 'list `I*.rcl idx `I*.get term `I*.rclfrom `I*.==
+      #1
+      ':: idx #1 `I*.+int 'idx `I*.sto loop ;
+      `I*.ifte ;
+    #0 
+    `I*.ifte ; 
+  `I*.dup { loop idx length list term } `I*.local ;
+'I*.has STO
+
+{ :name: HAS
+  :args: #2
+  :hint: "Check to see if a list on line 2 contains something like the item on line 1."
+  :table: { { I*.has Types.List Types.Any } } }
+I*.stobin
+
+
+(READF: Read an entire file split into lines.)
+':: "r" `I*.fopen
+  '::
+    { }
+    file `I*.feof `I*.not
+    ':: 
+      file `I*.freadline `I*.+list file `I*.feof 
+      `I*.self `I*.swap '`I*.drop '`I*.eval `I*.ifte ;
+    `I*.ift file `I*.fclose ; 
+  { file } `I*.local ;
+'I*.readf STO
+
+{ :name: READF
+  :args: #1
+  :hint: "Read an entire file and return it as a list of strings, one per line."
+  :table: { { I*.readf Types.String } } }
+I*.stobin

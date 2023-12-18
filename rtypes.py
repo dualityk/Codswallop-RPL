@@ -117,19 +117,12 @@ class objarchetype:
   def eval(self, runtime):
     runtime.Stack.push(self)
 
-  # A runtime evaluation routine, which is how the object will behave when
-  # encountered in a program by the runtime.
-  def rteval(self, runtime):
-    runtime.Stack.push(self)
-
-
 # Binary call, the barest wrapper around a Python function.
 class typebinproc(objarchetype):
   typename = 'Internal'
   data = '(internal)'
   def __init__(self, procedure, hint=None):
     self.eval = procedure
-    self.rteval = procedure
     if hint:
       self.hint = hint
     
@@ -261,53 +254,49 @@ class typestr(objarchetype):
   def disp(self):
     return self.data
 
-# Quoted symbol type.
+
+# Generic quote type.  When evaluated, it returns its contents, useful for
+# preventing the immediate evaluation of code and symbols.
+class typequote(objarchetype):
+  typename = 'Quote'
+  def parse(token):
+    #return
+    cursor = token.cursor
+    if cursor < len(token.text) and token.text[cursor] == "'":
+      # But if they did, now increment and try to retrieve a valid object.
+      cursor += 1
+      newtoken = parse.parsetoken(token.runtime, token.text, cursor)
+
+      # If we're already at the end of the text, that's an error.
+      if newtoken.stop: 
+        token.cursor = cursor
+        token.error = "You should put something here"
+        token.stop = True          
+      else:
+        newtoken.nextobj()
+        
+        # Did we get a thing?
+        if newtoken.valid:
+          # We did, so fashion a new tag.
+          token.validnext(typequote(newtoken.data), newtoken.cursor)
+        else:
+          # We got an error, pass it along.
+          token.cursor = newtoken.cursor
+          token.error = newtoken.error
+          token.stop = True
+
+  def eval(self, runtime):
+    runtime.Stack.push(self.data)
+    
+  def unparse(self, maxdepth=None):
+    return "'"+self.data.unparse(maxdepth)
+
+# Symbol type.  This evaluates whatever it's pointed to as soon as it's
+# encountered.
 class typesym(objarchetype):
   typename = 'Symbol'
-
-  def parse(token):    
-    # If it starts with a tic, it's a quoted symbol.
-    cursor = token.cursor
-    if token.text[cursor] == "'":
-      cursor += 1
-      ourtext, cursor = parse.getstring(token.text, cursor, "'")
-      
-      # It might be valid if the quote is closed.
-      if cursor < len(token.text) and token.text[cursor] == "'":
-        if parse.validatename(ourtext):
-          # Make a list out of our symbol.
-          ourtext = ourtext.split('.')
-          token.validnext(typesym(ourtext), cursor+1)
-        else:
-          token.error = "Are you trying to break shit with delimiters in symbol names?"
-          token.stop = True
-      else:
-        token.error = "Quoted symbol never unquoted"
-        token.stop = True
-  
   def __init__(self, x):
     self.data = x
-  def unparse(self, maxdepth=None):
-    return "'"+symtostr(self.data)+"'"
-  # Evaluating a symbol attempts to retrieve it by name and evaluate that.
-  def eval(self, runtime):
-    x = runtime.rcl(self.data)
-    if x is not None:
-      return x.eval
-    else:
-      runtime.Caller = 'this symbol'
-      oursym = symtostr(self.data)
-      runtime.ded('We seek '+oursym+' but we cannot always find '+oursym)
-
-# Unquoted symbol type (will not normally exist on stack, only in lists and
-# programs). This is probably just an immediate command, though recalling a
-# builtin can leave one on the stack.
-class typeunq(typesym):
-  typename = 'Function'
-  def __init__(self, x):
-    #self.data = str(x)
-    self.data = x
-    self.rteval = self.eval
   
   def parse(token):    
     cursor = token.cursor
@@ -315,8 +304,7 @@ class typeunq(typesym):
     
     # A little bit of preprocessing here.  If a symbol starts with a grave,
     # try to recall it.  This can be used to insert constants without excess
-    # chicanery.  If the name doesn't exist at the moment, we just return
-    # the symbol sans grave.
+    # chicanery.
     if len(ourtext)>1 and ourtext[0] == '`':
       ourtext = ourtext[1:]
       recallattempt = True
@@ -327,12 +315,13 @@ class typeunq(typesym):
       ourtext = ourtext.split('.')
       if recallattempt:
         thing = token.runtime.rcl(ourtext)
-        if thing != None:
+        if thing is not None:
           token.validnext(thing, cursor)
         else:
-          token.validnext(typeunq(ourtext), cursor)
+          token.error = "This symbol has to exist at parse time"
+          token.stop = True
       else:
-        token.validnext(typeunq(ourtext), cursor)
+        token.validnext(typesym(ourtext), cursor)
     else:
       token.error = "Are you trying to break shit with delimiters in symbol names?"
       token.stop = True
@@ -341,6 +330,17 @@ class typeunq(typesym):
     return symtostr(self.data)
   def unparse(self, maxdepth=None):
     return symtostr(self.data)
+
+  # Evaluating a symbol attempts to retrieve it by name and evaluate that.
+  def eval(self, runtime):
+    x = runtime.rcl(self.data)
+    if x is not None:
+      return x.eval
+    else:
+      runtime.Caller = 'this symbol'
+      oursym = symtostr(self.data)
+      runtime.ded('We seek '+oursym+' but we cannot always find '+oursym)
+
 
 # Comment string.  A special case string that's retained in programs and lists
 # but vanishes when evaluated.
@@ -365,9 +365,6 @@ class typerem(typestr):
   def eval(self, runtime):
     pass
   
-  def rteval(self, runtime):
-    pass
-    
   def unparse(self, maxdepth=None):
     return '('+self.data+')'
 
@@ -386,6 +383,53 @@ class typedir(objarchetype):
       self.next = nextobj
     # Here so == can hopefully tell us apart by address.
     self.data = self
+
+  def parse(token):
+    cursor = token.cursor
+    
+    # Just to be a good sport, catch spurious closed brackets too.
+    if token.text[cursor] == ']':
+      token.error = 'Wherever this was supposed to go, it wasn\'t here'
+      token.stop = True
+    elif token.text[cursor:cursor+5] == '[dir:':
+      # Set up our own token and start digging for tags.
+      cursor += 5
+      newtoken = parse.parsetoken(token.runtime, token.text, cursor)
+      firstdir = token.runtime.firstdir()
+      nextdir = firstdir
+      running = True
+      
+      while running:
+        # If we hit the end, that means we're missing a close bracket.
+        if newtoken.stop:
+          token.error = 'A directory has failed to ]'
+          token.stop = True
+          running = False
+        # If we found a close bracket, we're done here.
+        elif newtoken.text[newtoken.cursor] == ']':
+          running = False
+          token.validnext(firstdir, newtoken.cursor+1)
+        # Otherwise it's tag time.
+        else:
+          # Only try to parse a tag.
+          typetag.parse(newtoken)
+          # We got one, so add it to the chain.
+          if newtoken.valid:
+            newtoken.valid = False
+            nextdir.next = typedir(newtoken.data, nextdir.next)
+            nextdir = nextdir.next
+          # Or tag threw an error, in which case pass it along.  
+          elif newtoken.stop:
+            token.error = newtoken.error
+            token.cursor = newtoken.cursor
+            token.stop = True
+            running = False
+          # Or tag didn't throw an error, in which case it wasn't a tag.
+          else:
+            token.error = 'Directories can only contain tags'
+            token.cursor = newtoken.cursor
+            token.stop = True
+            running = False
    
   # Duplicating a directory is trickier, because all entries and tags
   # need to be copied.  This was so hairy I had to take a shower to make it.
@@ -451,8 +495,8 @@ class typetag(objarchetype):
     self.data = self
 
   def dup(self):
-    # Make a copy of the object we contain, also.
-    newtag = typetag(self.name, self.obj.dup())
+    # Make a copy of the tag, but not the object we contain.
+    newtag = typetag(self.name, self.obj)
     # And save our type number, because it may have changed.
     newtag.typenum = self.typenum
     return newtag
@@ -557,6 +601,9 @@ class typelst(objarchetype):
 
   # Lists print all their contents recursively (to a point).
   def unparse(self, maxdepth=PRINTDEPTH):
+    # For now, return a placeholder.
+    return "{ … }"
+  
     output = "{ "
     if maxdepth:
       for i in self.data:
@@ -603,15 +650,15 @@ class typecode(typelst):
   # Evaluating code pushes it to the call stack rather than the data stack.
   def eval(self, runtime):
     runtime.newcall(self)
-
-  # Print routine has a highlighting helper for tracebacks.
-  def unparse(self, highlight=-1, maxdepth=PRINTDEPTH):
+    
+  def unparse(self, maxdepth=PRINTDEPTH):
+    # For now, skip the rest of this and print nothing useful.
+    return ":: … ;"
+  
     output = ":: "
     if maxdepth:
       for i in range(len(self.data)):
-        if i == highlight: output += ANSIINV+" "
         output += self.data[i].unparse(maxdepth=maxdepth-1) + " "
-        if i == highlight: output += ANSINORMAL+" "
     else:
       output += BOOORING
     output += ";"
@@ -636,11 +683,6 @@ class typebin(objarchetype):
   dispatches = []
   # Number of expected arguments.
   argct = 0
-  
-  # On construction, build a dispatch table based upon argck and our
-  # list of hooks.
-  def __init__(self, data=None):
-    self.rteval = self.eval
   
   # Conceptually useful for saving a snapshot of a builtin before hooking it.
   def dup(self):
@@ -685,8 +727,9 @@ class typebin(objarchetype):
 # types.
 def baseregistry():
   Types = rpltypes()
-  for i in [typebinproc, typeunq, typefloat, typesym, typestr, typerem, 
-            typebin, typedir, typetag, typelst, typecode, typeint, typeio]:
+  for i in [typebinproc, typesym, typefloat, typestr, typerem,
+            typebin, typedir, typetag, typelst, typecode, typeint, typeio,
+            typequote]:
     Types.register(i)
   return Types
 

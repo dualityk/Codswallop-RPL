@@ -46,13 +46,18 @@ def makebinprocs():
 
   ### Documentation  
   
+  # Current main store (including locals and whatever).
+  def x(rt):
+    rt.Stack.push(rt.firstobj)
+  bins += [['firstobj', x]]
+  
   # List of global names,
   def x(rt):
     n = rtypes.typelst()
     nam = rt.firstobj.next
     while nam is not rt.lastobj:
       if len(nam.tag.name):
-        n.push(rtypes.typeunq([nam.tag.name]))
+        n.push(rtypes.typesym([nam.tag.name]))
       nam = nam.next
     rt.Stack.push(n)
   bins += [['names', x]]
@@ -62,7 +67,9 @@ def makebinprocs():
     n = rtypes.typelst()
     nam = rt.Stack.pop().next
     while nam != rt.lastobj:
-      n.push(rtypes.typeunq([nam.tag.name]))
+      # Skip firstdirs.
+      if len(nam.tag.name):
+        n.push(rtypes.typesym([nam.tag.name]))
       nam = nam.next
     rt.Stack.push(n)
   bins += [['dir', x]]
@@ -242,7 +249,7 @@ def makebinprocs():
     thing = rt.Stack.pop()
     try:
       with open(name.data, 'w') as file:
-        if thing.typenum == rt.Types.id['Symbol']: 
+        if thing.typenum == rt.symtype: 
           printable = rt.rcl(thing.data).unparse(maxdepth=-1)+" "+thing.unparse()+" STO\n"
         else:
           # Maxdepth of -1 ensures full recursion.
@@ -315,7 +322,7 @@ def makebinprocs():
       # contain anything circulatory:
       if obj.typenum == rt.Types.id['Directory'] and rt.circdir(obj):
         usded(og,obj,name,'That directory contains circular references')
-      elif obj.typenum in rt.symtypes and rt.circsym(obj.data):
+      elif obj.typenum == rt.symtype and rt.circsym(obj.data):
         usded(og,obj,name,'cDonalds Theorem does not apply to symbolic references')
   bins += [['sto', x]]
 
@@ -323,7 +330,7 @@ def makebinprocs():
   def x(rt):
     tag = rt.Stack.pop()
     thing = rt.Stack.pop()
-    if thing.typenum in rt.symtypes:
+    if thing.typenum == rt.symtype:
       original = tag.obj
       tag.obj = thing
       if rt.circsym(thing.data):
@@ -407,7 +414,7 @@ def makebinprocs():
     
     dirtype = rt.Types.id['Directory']
     tagtype = rt.Types.id['Tag']
-    symtypes = [rt.Types.id['Symbol'], rt.Types.id['Function']]
+    symtype = rt.symtype
     
     # For just the first pass, hang onto whatever we make, because the
     # runtime may need to modify it to point to the *next* firstobj in case
@@ -415,7 +422,7 @@ def makebinprocs():
     firstone = True
     
     for i in names:
-      if i.typenum in symtypes:
+      if i.typenum == symtype:
         # If it's a symbol, verify it's a valid one.
         if len(i.data)>1:
           usded("Ain't no dots in local variable names")
@@ -440,7 +447,7 @@ def makebinprocs():
       else:
         usded("Only symbols and tags lead to success")
       # Check for circular references as we go.
-      if nextob.tag.obj.typenum in symtypes:
+      if nextob.tag.obj.typenum == symtype:
         rt.firstobj = nextob
         if rt.circsym(circname):
           usded('Round and round the '+i.unparse()+' bush the '+
@@ -525,23 +532,36 @@ def makebinprocs():
   bins += [['+str', x]]
   
   def x(rt):
-    x = rt.Stack.pop()
-    y = rt.Stack.pop().dup()
-    y.push(x)
-    rt.Stack.push(y)
+    src = rt.Stack.pop()
+    dest = rt.Stack.pop().dup()
+    dest.push(src)
+    rt.Stack.push(dest)
   bins += [['+list', x]]
 
   def x(rt):
     x = rt.Stack.pop().dup()
-    x.data = [rt.Stack.pop()]+x.data
+    x.data = [rt.Stack.pop().dup()]+x.data
     rt.Stack.push(x)
   bins += [['list+', x]]
 
   def x(rt):
     x = rt.Stack.pop().data
     y = rt.Stack.pop().data
+    rt.Stack.push(rtypes.typelst(y+x))
+  bins += [['catlist', x]]
+
+  def x(rt):
+    x = rt.Stack.pop().data
+    y = rt.Stack.pop().data
     rt.Stack.push(rtypes.typecode(y+x))
-  bins += [['+code', x]]
+  bins += [['catcode', x]]
+
+  def x(rt):
+    x = rt.Stack.pop().data
+    y = rt.Stack.pop().data
+    rt.Stack.push(rtypes.typesym(y+x))
+  bins += [['+sym', x]]
+ 
  
   # Multiply
   def x(rt):
@@ -629,6 +649,11 @@ def makebinprocs():
 
 
   ### Conversions
+  # to quote
+  def x(rt):
+    rt.Stack.push(rtypes.typequote(rt.Stack.pop()))
+  bins += [['>quote', x]]
+  
   # to tag
   def x(rt):
     name = rt.Stack.pop()
@@ -688,8 +713,7 @@ def makebinprocs():
           # If we're handed a symbol, try to recall it first.  This is the
           # object we'll dispatch to.
           ourdispatch = i.data[0]
-          if ourdispatch.typenum == rt.Types.id['Function'] or\
-             ourdispatch.typenum == rt.Types.id['Symbol']:
+          if ourdispatch.typenum == rt.symtype:
             tryin = rt.rcl(ourdispatch.data)
             if tryin is not None:
               ourdispatch = tryin
@@ -703,8 +727,7 @@ def makebinprocs():
             # Here also, if we find a symbol, try to recall it.  This will
             # reduce an otherwise mandatory two-step when making builtins of
             # custom types.
-            if ourarg.typenum == rt.Types.id['Function'] or\
-               ourarg.typenum == rt.Types.id['Symbol']:
+            if ourarg.typenum == rt.symtype:
               tryin = rt.rcl(ourarg.data)
               if tryin is not None:
                 ourarg = tryin
@@ -807,7 +830,7 @@ def makebinprocs():
         rt.Stack.push(i)
   bins += [['>obj', x]]
   
-  # To symbol.
+  # To function.
   def x(rt):
     ourstring = rt.Stack.pop()
     if parse.validatename(ourstring.data):
@@ -816,24 +839,6 @@ def makebinprocs():
       rt.Stack.push(ourstring)
       rt.ded("This can be a string, but it won't be a symbol")
   bins += [['str>sym', x]]
-  
-  def x(rt):
-    rt.Stack.push(rtypes.typesym(rt.Stack.pop().data))
-  bins += [['func>sym', x]]
-
-  # To function.
-  def x(rt):
-    ourstring = rt.Stack.pop()
-    if parse.validatename(ourstring.data):
-      rt.Stack.push(rtypes.typeunq(ourstring.data.split('.')))
-    else:
-      rt.Stack.push(ourstring)
-      rt.ded("This can be a string, but it won't be a symbol")
-  bins += [['str>func', x]]
-
-  def x(rt):
-    rt.Stack.push(rtypes.typeunq(rt.Stack.pop().data))
-  bins += [['sym>func', x]]
 
   # To string.
   def x(rt):
@@ -989,6 +994,19 @@ def makebinprocs():
       rt.Stack.push(rtypes.typeint(i))
       rt.ded('It would help to have a valid starting subscript')
   bins += [['subs', x]]
+
+  # Get from list and evaluate
+  def x(rt):
+    i = rt.Stack.pop().data
+    lst = rt.Stack.pop()
+    if i >= 0 and i < len(lst.data):
+      return lst.data[i].eval
+    else:
+      rt.Stack.push(lst)
+      rt.Stack.push(rtypes.typeint(i))
+      rt.ded('This '+lst.typename+' deserves a better subscript')
+  bins += [['gete', x]]
+
   
   # Get from list
   def x(rt):

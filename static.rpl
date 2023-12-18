@@ -1,0 +1,186 @@
+( CODSWALLOP RPL, a zen garden
+  #####################################################
+  STATIC compiler )
+
+(This module contains a source-to-source compiler, which recursively
+ digs through objects looking for symbolic references to builtins or
+ internals.  If it finds them, it replaces the symbol with the object
+ itself.  This can considerably reduce the number of symbol lookups
+ needed at runtime, with an attendant increase in execution speed.)
+
+(Our base directory tree.)
+[dir:
+  :ize:     [dir:]
+  :default: [dir:
+    :depth:     #100 ]]
+'Static STO
+
+(The per-type list of izers for general use.)
+{ Static.ize.pass } Types.n LEN * 
+'Static.ize.dir   Types.Directory PUT
+'Static.ize.sym   Types.Symbol    PUT
+'Static.ize.quote Types.Quote     PUT
+'Static.ize.list  Types.List      PUT
+'Static.ize.list  Types.Code      PUT
+'Static.ize.tag   Types.Tag       PUT
+'Static.default.izers STO
+
+(The per-type list of izers for symbol following.)
+{ Static.ize.pass } Types.n LEN *
+'Static.ize.sym    Types.Symbol   PUT
+'Static.ize.nopass Types.Builtin  PUT
+'Static.ize.nopass Types.Internal PUT
+'Static.default.symizers STO
+
+(A helper routine to add sensible defaults to deal with a new user type.)
+'::
+  Static.default.izers 'Static.ize.pass + 'Static.default.izers STO
+  Static.default.symizers 'Static.ize.pass + 'Static.default.symizers STO ;
+'Static.addtype STO
+
+(  "Static-izers" -- per-type object dereferencing  )
+
+(These izers expect an object in 'obj' to process, and will return
+ a boolean if a new object was written back.)
+
+(For most objects, no action is required.)
+':: obj unchanged ;
+'Static.ize.pass STO
+
+(For objects that have been dereferenced, no action is required either,
+ but the change must be reported upstream.)
+':: obj changed ;
+'Static.ize.nopass STO
+
+(For quotes, they are returned as modified only if their contents are
+ modified.)
+':: obj EVAL izer
+  ':: QUOTE changed ;
+  ':: DROP obj unchanged ;
+  IFTE ;
+'Static.ize.quote STO
+
+(For symbols, they return either themselves unmodified, or a builtin or
+ internal if that's what they point to.)
+'::
+  obj DUP DUP symbolok SWAP EXISTS AND
+  '::
+    ':: RCL izer ;
+    { :izers: Static.default.symizers } LOCAL ; 
+  unchanged
+  IFTE ;
+'Static.ize.sym STO
+
+(For a list, each object inside it must be inspected in turn, and if any of
+ its contents have changed, the whole list is marked as updated.  Null lists
+ are always marked unchanged.)
+':: obj LEN DUP
+  '::
+    '::
+      ':: obj idx #1 - DUP 'idx STO 
+         GET izer 
+         ':: #1 'waschanged STO
+            obj SWAP idx PUT QUOTE 'obj STO ;
+         'DROP
+         IFTE
+         idx ;
+      REP obj waschanged ;
+    { :waschanged: #0 idx } LOCAL ;
+  ':: DROP obj unchanged ;
+  IFTE ;
+'Static.ize.list STO
+
+(For a tag, the contents of the tag are -ized, and only if its contents
+ change is the tag updated.  A new tag is made rather than modifying the old
+ one.)
+'::
+  obj OBJ> QUOTE
+  ':: 
+    izer
+    ':: tagname >TAG changed ;
+    ':: DROP obj unchanged ;
+    IFTE ;
+  { tagname } LOCAL ;
+'Static.ize.tag STO
+
+(Izing a directory is comparable to doing a list, but each name must be
+ studied in turn, at least if the directory isn't empty.  Before the first
+ time a directory entry changes, a memory copy is made to keep it from
+ modifying directories which might already be stored somewhere.)
+':: obj DUP DIR DUP LEN DUP
+  '::
+    ':: 
+      ':: 'dir names idx #1 - DUP 'idx STO 
+        GET + RCL izer
+        '::
+          waschanged NOT
+          ':: #1 'waschanged STO 
+            dir CP 'dir STO ;
+          IFT
+          'dir names idx GET + STO ;
+        'DROP
+        IFTE
+        idx ;
+      REP dir waschanged ;
+    { idx names dir :waschanged: #0 } LOCAL ;
+  ':: DROP DROP unchanged ;
+  IFTE ;
+'Static.ize.dir STO
+
+(From the present environment, look up the appropriate function to call per
+ type of object it was handed.  It's also quoted, to prevent it from being
+ evaluated unexpectedly.  Recursion depth is limited here as well.)
+':: QUOTE depth #1 -
+  ':: depth
+    ':: izers obj TYPE GETE ;
+    ':: obj unchanged ;
+    IFTE ;
+  { depth obj } LOCAL ;
+'Static.ize.izer STO
+
+
+(  Default compile environment  )
+
+'::
+  { :symbolok: :: DROP #1 ;
+    :depth: Static.default.depth
+    :izers: Static.default.izers
+    :izer: Static.ize.izer
+    :changed: #1
+    :unchanged: #0 }
+  SWAP + LOCAL ;
+'Static.default.environment STO
+
+
+(  General purpose applications of the above  )
+
+(A generic compiler with no excepted symbols.)
+{ :name: STATICN
+  :args: #1
+  :hint: "Resolve any names pointing to builtins or internals."
+  :table:
+  { { 
+    ::
+      ':: izer `DROP ;
+      {}
+      Static.default.environment ;
+    Types.Any } } }
+I*.stobin
+
+(A compiler which will not pursue any symbols in an exception list.)
+{ :name: STATIC
+  :args: #2
+  :hint: "Resolve any names pointing to builtins or internals, except those in the list of exceptions."
+  :table:
+  { { 
+    ::
+      ':: izer `DROP ;
+      { exceptions 
+        :symbolok:
+        :: exceptions `I*.swap `I*.has `I*.not ; }
+      Static.default.environment ;
+    Types.Any Types.List } } }
+I*.stobin
+
+(Finally, compile the compiler.)
+Static STATICN 'Static STO

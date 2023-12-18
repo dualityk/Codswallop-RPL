@@ -11,58 +11,64 @@
  until later in the boot sequence.)
 
 (-2nd, we need some semblance of error handling.)
-::
+'::
   "Alas--" `I*.disp
   #0
-  ::
+  '::
     trace `I*.len
-    :: (`I*.sst)
-      "In object " trace idx `I*.get #1 `I*.get `I*.+str " of " `I*.+str
-      trace idx `I*.get #0 `I*.get `I*.+str `I*.disp
-      idx #1 `I*.+int `I*.dup 'idx' `I*.sto trace `I*.len `I*.<
-      `I*.self `I*.swap :: `I*.eval ; :: `I*.drop ; `I*.ifte ;
-    :: "." `I*.disp ;
+    ':: (`I*.sst)
+      "In object " trace idx `I*.get #1 `I*.get `I*.+str `I*.dispn 
+      " of :: " `I*.dispn
+      trace idx `I*.get #0 `I*.get `I*.dup `I*.len
+      ':: 'obj `I*.rcl idx `I*.get `I*.>str `I*.dispn " " `I*.dispn 
+         idx #1 `I*.+int `I*.dup 'idx `I*.sto len `I*.<
+         `I*.self `I*.swap '`I*.eval '`I*.drop `I*.ifte ;
+      { len obj :idx:#0 } `I*.local
+      " ;" `I*.disp
+      idx #1 `I*.+int `I*.dup 'idx `I*.sto trace `I*.len `I*.<
+      `I*.self `I*.swap ':: `I*.eval ; ':: `I*.drop ; `I*.ifte ;
+    ':: "." `I*.disp ;
     `I*.ifte 
     "" `I*.disp
     caller " opines: " `I*.+str reason `I*.+str `I*.disp ;
   { idx trace reason caller } `I*.local ;
-'ERRTRACE' `I*.sto
+'ERRTRACE `I*.sto
 
 (-1st, a rudimentary single stepper.)
-:: `I*.>str
-  :: "Single step: " obj `I*.+str ", call depth " `I*.+str depth 
+':: `I*.>str
+  ':: "Single step: " obj `I*.+str ", call depth " `I*.+str depth 
      `I*.+str `I*.disp
      `I*.stack "Stack: " `I*.swap `I*.+str `I*.disp 
      "(enter or break) " `I*.prompt `I*.drop ;
   { obj depth } `I*.local `I*.sst ;
-'STEP' `I*.sto
+'STEP `I*.sto
 
 (Zeroth, we hang onto our commandline arguments.)
-'ARGS' I*.sto
+'ARGS I*.sto
 
 (First, we try to open modules.rpl.)
 #1 I*.dedcont BASDIR "modules.rpl" I*.+str I*.dsk>
 
 (Did it work?)
 I*.isded
-:: `I*.drop "The lack of a modules.rpl suggests you may not have the best time" I*.disp ;
-:: (And is it actually a list?)
+':: `I*.drop "The lack of a modules.rpl suggests you may not have the best time" I*.disp ;
+':: (And is it actually a list?)
   `I*.dup `I*.type Types.List I*.==
-  :: #-1
-    :: (SST) idx #1 `I*.+int `I*.dup 'idx' `I*.sto modules `I*.len `I*.<
-      :: (Fetch a list entry and try to load it if it's a string.)
+  ':: #-1
+    ':: (SST) idx #1 `I*.+int `I*.dup 'idx `I*.sto modules `I*.len `I*.<
+      ':: (Fetch a list entry and try to load it if it's a string.)
         modules idx `I*.get `I*.dup `I*.type Types.String `I*.==
-        :: BASDIR `I*.swap `I*.+str ".rpl" `I*.+str `I*.dsk> `I*.isded
-          :: "Module " modules idx `I*.get `I*.+str " is unhappy" 
+        ':: BASDIR `I*.swap `I*.+str ".rpl" `I*.+str `I*.dsk> `I*.isded
+          ':: "Module " modules idx `I*.get `I*.+str " is unhappy" 
             `I*.+str `I*.disp "" `I*.disp `I*.unded ;
           `I*.ift ;
-        :: `I*.drop ;
+        ':: `I*.drop ;
         `I*.ifte ;
-      :: `I*.bail ;
+      ':: `I*.bail ;
       `I*.ifte `I*.self `I*.eval ;
     { idx modules } `I*.local
     (This comment keeps us from inadvertently hanging onto those locals.) ;
-  :: "You may have a modules.rpl but it's not a great one" `I*.disp ; 
+  ':: "You may have a modules.rpl but it's not a great one" `I*.disp ; 
   `I*.ifte ;
 `I*.ifte
 
@@ -76,16 +82,16 @@ I*.isded
  lying around.  'SAFE' will erase the I* directory and itself.  It's then
  immediately called, but you can comment out the call to keep the juicy
  bits to hand.)
-:: 'I*' RM 'SAFE' RM ; 'SAFE' STO
+':: 'I* RM 'SAFE RM ; 'SAFE STO
 
-(This is what you'd comment out: ) SAFE
+(This is what you'd comment out: ) (SAFE)
 
 (And hand off to a commandline program or to the user.)
 
 ARGS LEN
-:: ARGS DSK> ;
-:: 'REPL' EXISTS
-  :: #1 TRACE "Codswallop RPL" DISP REPL ;
-  :: "Successfully failed to find REPL" DISP ;
+':: ARGS DSK> ;
+':: 'REPL EXISTS
+  ':: #1 TRACE "Codswallop RPL" DISP REPL ;
+  ':: "Successfully failed to find REPL" DISP ;
   IFTE ;
 IFTE
