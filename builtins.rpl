@@ -307,6 +307,24 @@ I*.stobin
 
 
 ( ### Maths )
+(Parity)
+{ :name: ODD
+  :args: #1
+  :hint: "Determine if a number is odd."
+  :table:
+  { { I*.odd Types.Integer } 
+    { I*.odd Types.Float } } }
+I*.stobin
+
+(Absolute value)
+{ :name: ABS
+  :args: #1
+  :hint: "Return absolute value of a number."
+  :table:
+  { { I*.absint Types.Integer }
+    { I*.absfloat Types.Float } } }
+I*.stobin
+
 (Addition)
 { :name: +
   :args: #2
@@ -323,6 +341,17 @@ I*.stobin
     { I*.+str   Types.Any     Types.String }
     { I*.catcode  Types.Code    Types.Code } 
     { I*.+sym   Types.Symbol  Types.Symbol } } }
+I*.stobin
+
+(Power)
+{ :name: ^
+  :args: #2
+  :hint: "Arithmetic power (y^x)."
+  :table:
+  { { I*.^int   Types.Integer Types.Integer }
+    { I*.^float Types.Float   Types.Float }
+    { I*.^float Types.Integer Types.Float }
+    { I*.^float Types.Float   Types.Integer } } }
 I*.stobin
 
 (Multiply)
@@ -359,6 +388,17 @@ I*.stobin
     { I*./float Types.Float   Types.Float }
     { I*./float Types.Integer Types.Float }
     { I*./float Types.Float   Types.Integer } } }
+I*.stobin
+
+(Modulo)
+{ :name: MOD
+  :args: #2
+  :hint: "Arithmetic division (remainder)."
+  :table:
+  { { I*.modint   Types.Integer Types.Integer }
+    { I*.modfloat Types.Float   Types.Float }
+    { I*.modfloat Types.Integer Types.Float }
+    { I*.modfloat Types.Float   Types.Integer } } }
 I*.stobin
 
 (Negate)

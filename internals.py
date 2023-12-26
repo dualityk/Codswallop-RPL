@@ -493,12 +493,44 @@ def makebinprocs():
 
 
   ### Mathemagics
-  # Accumulate (not >BIN'd for safety)
+  # Parity
+  def x(rt):
+    rt.Stack.push(rtypes.typeint(bool(rt.Stack.pop().data % 2)))
+  bins += [['odd', x]]
+  
+  # Absolute value
+  def x(rt):
+    rt.Stack.push(rtypes.typeint(abs(rt.Stack.pop().data)))
+  bins += [['absint', x]]
+
+  def x(rt):
+    rt.Stack.push(rtypes.typefloat(abs(rt.Stack.pop().data)))
+  bins += [['absfloat', x]]
+  
+  # Modulo
   def x(rt):
     x = rt.Stack.pop()
-    rt.Stack.data[len(rt.Stack.data)-1].data += x.data
-  bins += [['accum', x]]
+    y = rt.Stack.pop()
+    if x.data:
+      rt.Stack.push(rtypes.typefloat(y.data % x.data))
+    else:
+      rt.Stack.push(y)
+      rt.Stack.push(x)
+      rt.ded('Excuse you')
+  bins += [['modfloat', x]]
 
+  def x(rt):
+    x = rt.Stack.pop()
+    y = rt.Stack.pop()
+    if x.data:
+      rt.Stack.push(rtypes.typeint(y.data % x.data))
+    else:
+      rt.Stack.push(y)
+      rt.Stack.push(x)
+      rt.ded('Excuse you')
+  bins += [['modint', x]]
+
+  
   # Add
   def x(rt):
     rt.Stack.push(rtypes.typefloat(rt.Stack.pop().data+rt.Stack.pop().data))
@@ -545,7 +577,19 @@ def makebinprocs():
     rt.Stack.push(rtypes.typesym(y+x))
   bins += [['+sym', x]]
  
+  # POWER^^^^^^
+  def x(rt):
+    x = rt.Stack.pop().data
+    y = rt.Stack.pop().data
+    rt.Stack.push(rtypes.typefloat(y**x))
+  bins += [['^float', x]]
  
+  def x(rt):
+    x = rt.Stack.pop().data
+    y = rt.Stack.pop().data
+    rt.Stack.push(rtypes.typeint(y**x))
+  bins += [['^int', x]]
+
   # Multiply
   def x(rt):
     rt.Stack.push(rtypes.typefloat(rt.Stack.pop().data*rt.Stack.pop().data))
