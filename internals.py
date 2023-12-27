@@ -237,11 +237,35 @@ def makebinprocs():
   
   # Duplicate.
   def x(rt):
-    x = rt.Stack.pop()
-    rt.Stack.push(x)
-    rt.Stack.push(x)
+    rt.Stack.data += rt.Stack.data[len(rt.Stack.data)-1:]
   bins += [['dup', x]]
   
+  def x(rt):
+    rt.Stack.data += rt.Stack.data[len(rt.Stack.data)-2:]
+  bins += [['dup2', x]]
+  
+  # Roll.
+  def x(rt):
+    qty = rt.Stack.pop()
+    if len(rt.Stack) < qty.data:
+      rt.Stack.push(qty)
+      rt.ded('Your katamari is not big enough to roll this much')
+    elif qty.data>0:
+      splice = len(rt.Stack.data)-qty.data
+      rt.Stack.data[splice:] = rt.Stack.data[splice+1:] + [rt.Stack.data[splice]]
+  bins += [['roll', x]]
+                   
+  def x(rt):
+    qty = rt.Stack.pop()
+    if len(rt.Stack) < qty.data:
+      rt.Stack.push(qty)
+      rt.ded('Your katamari is not big enough to roll this much')
+    elif qty.data>0:
+      splice = len(rt.Stack.data)-qty.data
+      last = len(rt.Stack.data)-1
+      rt.Stack.data[splice:] = [rt.Stack.data[last]] + rt.Stack.data[splice:last] 
+  bins += [['rolld', x]]
+
   ### Disk store
 
   # Parse and evaluate from disk.

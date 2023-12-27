@@ -23,16 +23,16 @@ I*.stobin
  user code, so it was safe to implement with internals for a smidge
  of extra speed.)
 ':: 
-  'tag `I*.>tag
-  `I*.swap `I*.dup `I*.len #0
+  `I*.>quote
+  `I*.swap `I*.dup `I*.len
   ':: idx length `I*.<
-    ':: 'list `I*.rcl idx `I*.get term `I*.rclfrom `I*.==
+    ':: 'list `I*.rcl idx `I*.get term `I*.==
       #1
       ':: idx #1 `I*.+int 'idx `I*.sto loop ;
       `I*.ifte ;
     #0 
     `I*.ifte ; 
-  `I*.dup { loop idx length list term } `I*.local ;
+  `I*.dup { loop length list term :idx:#0 } `I*.local ;
 'I*.has STO
 
 { :name: HAS

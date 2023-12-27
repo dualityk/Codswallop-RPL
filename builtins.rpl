@@ -193,6 +193,25 @@ I*.stobin
   :table: { { I*.dup Types.Any } } }
 I*.stobin
 
+{ :name: DUP2
+  :args: #2
+  :hint: "Duplicate the first and second lines of the stack."
+  :table: { { I*.dup2 Types.Any Types.Any } } }
+I*.stobin
+
+(Roll.)
+{ :name: ROLL
+  :args: #1
+  :hint: "Roll the first n lines of the stack up."
+  :table: { { I*.roll Types.Integer } } }
+I*.stobin
+
+{ :name: ROLLD
+  :args: #1
+  :hint: "Roll the first n lines of the stack down."
+  :table: { { I*.rolld Types.Integer } } }
+I*.stobin
+
 (Copy.)
 { :name: CP
   :args: #1
