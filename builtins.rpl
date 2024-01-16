@@ -212,6 +212,13 @@ I*.stobin
   :table: { { I*.rolld Types.Integer } } }
 I*.stobin
 
+(Require.)
+{ :name: REQUIRE
+  :args: #1
+  :hint: "Require n objects on the stack to continue."
+  :table: { { I*.require Types.Integer } } }
+I*.stobin
+
 (Copy.)
 { :name: CP
   :args: #1

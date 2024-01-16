@@ -266,6 +266,14 @@ def makebinprocs():
       rt.Stack.data[splice:] = [rt.Stack.data[last]] + rt.Stack.data[splice:last] 
   bins += [['rolld', x]]
 
+  # Require.
+  def x(rt):
+    qty = rt.Stack.pop()
+    if len(rt.Stack) < qty.data:
+      rt.Stack.push(qty)
+      rt.ded('Successful persons have '+str(qty.data)+' or more objects on the stack')
+  bins += [['require', x]]
+  
   ### Disk store
 
   # Parse and evaluate from disk.
