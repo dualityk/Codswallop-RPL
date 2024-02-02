@@ -216,7 +216,10 @@ def makebinprocs():
   # Clear stacks.
   def x(rt):
     rt.Stack.data=[]
-    rt.Calls = rt.Calls[0:rt.Tracedepth]
+    callscount = CALLDEPTH-rt.Depth-rt.Tracedepth
+    while callscount:
+      rt.dropcall()
+      callscount -= 1
   bins += [['clr', x]]
   
   # Evaluate.
@@ -487,15 +490,12 @@ def makebinprocs():
   def x(rt):
     rt.retcall()
     rt.dropcall()
-    # if len(rt.Calls): rt.Calls.pop()
   bins += [['bail', x]]
 
   # BEVAL: bail and evaluate (goto)
   def x(rt):
     rt.retcall()
     rt.dropcall()
-    #if len(rt.Calls):
-    #  rt.Calls.pop()
     return rt.Stack.pop().eval
   bins += [['beval', x]]
 
