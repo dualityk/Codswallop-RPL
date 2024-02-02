@@ -31,19 +31,6 @@ except:
 def makebinprocs():
   bins = []
    
-  ### Temporaries
-  # Count up firstobjs in named store.
-  def x(rt):
-    nam = rt.firstobj
-    count = 0
-    while nam is not rt.lastobj:
-      if not len(nam.tag.name):
-        count += 1
-      nam = nam.next
-    rt.Stack.push(rtypes.typeint(count))
-  bins += [['firsts', x]]
-  
-
   ### Documentation  
   
   # Current main store (including locals and whatever).
@@ -419,10 +406,14 @@ def makebinprocs():
       rt.Stack.data = origstack
       rt.ded(reason)
       
-    # Hang onto our whole stack and our current firstobj in case of errors.
+    # Hang onto our whole stack and our current context.
     origstack = rt.Stack.data[:]
     origcontext = rt.Context
     
+    # Make a new temporary context for purposes of checking for circulation.
+    # In the future, it might make more sense, and be a lot faster, to just
+    # not check for circulation at all, now that such a reference will softly
+    # hang the inner loop instead of crashing all the way out of Python.
     names = rt.Stack.pop().data
     prog = rt.Stack.pop()
     rt.Context = rtypes.typecontext(prog, origcontext.names)
@@ -447,6 +438,7 @@ def makebinprocs():
           usded('You gotta have '+str(len(names))+' things on the stack!')
           return
       elif i.typenum == tagtype:
+        # Tags are copied and assigned without pulling anything off the stack.
         circname = [i.name]
         nextob = rtypes.typedir(i.dup(), nextob)
       else:
@@ -465,6 +457,7 @@ def makebinprocs():
     # And queue a new local variable context.
     
     # Two ways to call: one if we had no arguments, the other if we did.
+    # Restore our original context first, discarding the test context.
     nextob = rt.Context.names
     rt.Context = origcontext
     if len(names):

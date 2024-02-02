@@ -55,7 +55,8 @@ ANSI.codes.csi "2J" + ANSI.codes.csi + ";H" + 'ANSI.codes.clear STO
 (Syntax highlighting color strings go here, one per object type.
  First number is the default color.)
 { "" } Types.n LEN *
-#251 ANSI.setfg Types.Any       PUT	     
+#251 ANSI.setfg Types.Any       PUT
+ #12 ANSI.setfg Types.Context   PUT
   #6 ANSI.setfg Types.Integer   PUT  
   #6 ANSI.setfg Types.Float     PUT    
   #7 ANSI.setfg Types.String    PUT   
