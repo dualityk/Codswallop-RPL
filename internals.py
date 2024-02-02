@@ -48,13 +48,13 @@ def makebinprocs():
   
   # Current main store (including locals and whatever).
   def x(rt):
-    rt.Stack.push(rt.firstobj)
+    rt.Stack.push(rt.Context.names)
   bins += [['firstobj', x]]
   
   # List of global names,
   def x(rt):
     n = rtypes.typelst()
-    nam = rt.firstobj.next
+    nam = rt.Context.names.next
     while nam is not rt.lastobj:
       if len(nam.tag.name):
         n.push(rtypes.typesym([nam.tag.name]))
@@ -81,10 +81,7 @@ def makebinprocs():
   
   # Introspect
   def x(rt):
-    if len(rt.Calls):
-      rt.Stack.push(rt.Calls[len(rt.Calls)-1][CALL_CODE])
-    else:
-      rt.ded('You asked for context but there is none')
+    rt.Stack.push(rt.Context.code)
   bins += [['self', x]]
   
   
@@ -398,7 +395,7 @@ def makebinprocs():
   def x(rt):
     prog = rt.Stack.pop()
     tag = rt.Stack.pop()
-    rt.newlocall(prog, rtypes.typedir(tag, rt.firstobj))
+    rt.newlocall(prog, rtypes.typedir(tag, rt.Context.names))
   bins += [['tlocal', x]]
 
   # Register new type.
@@ -415,26 +412,22 @@ def makebinprocs():
   def x(rt):
     # In case of emergency, pull this lever and return.
     def usded(reason):
-      rt.firstobj = firstob
+      rt.Context = origcontext
       rt.Stack.data = origstack
       rt.ded(reason)
       
     # Hang onto our whole stack and our current firstobj in case of errors.
     origstack = rt.Stack.data[:]
-    firstob = rt.firstobj
-        
+    origcontext = rt.Context
+    
     names = rt.Stack.pop().data
     prog = rt.Stack.pop()
-    nextob = rt.firstobj
+    rt.Context = rtypes.typecontext(prog, origcontext.names)
+    nextob = origcontext.names
     
     dirtype = rt.Types.id['Directory']
     tagtype = rt.Types.id['Tag']
     symtype = rt.symtype
-    
-    # For just the first pass, hang onto whatever we make, because the
-    # runtime may need to modify it to point to the *next* firstobj in case
-    # of a tail call.
-    firstone = True
     
     for i in names:
       if i.typenum == symtype:
@@ -447,39 +440,34 @@ def makebinprocs():
         if thisob is not None:
           nextob = rtypes.typedir(rtypes.typetag(i.data[0], thisob), nextob)
           circname = i.data
-          if firstone:
-            firstone = False
-            lastob = nextob
         else:
           usded('You gotta have '+str(len(names))+' things on the stack!')
           return
       elif i.typenum == tagtype:
         circname = [i.name]
         nextob = rtypes.typedir(i.dup(), nextob)
-        if firstone:
-          firstone = False
-          lastob = nextob
       else:
         usded("Only symbols and tags lead to success")
       # Check for circular references as we go.
+      rt.Context.names = nextob
       if nextob.tag.obj.typenum == symtype:
-        rt.firstobj = nextob
         if rt.circsym(circname):
           usded('Round and round the '+i.unparse()+' bush the '+
                 i.unparse()+' chased the '+i.unparse())
           return
       elif nextob.tag.obj.typenum==dirtype:
-        rt.firstobj = nextob
         if rt.circdir(nextob.tag.obj):
           usded('This directory circulates if you put it there')
           return
     # And queue a new local variable context.
     
     # Two ways to call: one if we had no arguments, the other if we did.
-    if firstone:
-      rt.newcall(prog)
-    else:
+    nextob = rt.Context.names
+    rt.Context = origcontext
+    if len(names):
       rt.newlocall(prog, nextob)
+    else:
+      rt.newcall(prog)
       
   bins += [['local', x]]
   
@@ -498,14 +486,16 @@ def makebinprocs():
   # Bail (pop one off the call stack)
   def x(rt):
     rt.retcall()
-    if len(rt.Calls): rt.Calls.pop()
+    rt.dropcall()
+    # if len(rt.Calls): rt.Calls.pop()
   bins += [['bail', x]]
 
   # BEVAL: bail and evaluate (goto)
   def x(rt):
     rt.retcall()
-    if len(rt.Calls):
-      rt.Calls.pop()
+    rt.dropcall()
+    #if len(rt.Calls):
+    #  rt.Calls.pop()
     return rt.Stack.pop().eval
   bins += [['beval', x]]
 

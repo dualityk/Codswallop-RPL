@@ -125,7 +125,24 @@ class typebinproc(objarchetype):
     self.eval = procedure
     if hint:
       self.hint = hint
-    
+
+# Call context, the basis for the call stack.
+#   code: the code object for this context
+#   names: the first name for this context
+#   next: the next context
+#   ip: instruction pointer
+#   new: 
+class typecontext(objarchetype):
+  typename = 'Context'
+  data = '(context)'
+  def __init__(self, code, names, next=None):
+    self.code = code
+    self.names = names
+    if next is None:
+      self.next = self
+    else:
+      self.next = next
+    self.ip = 0    
 
 # Integer type.
 class typeint(objarchetype):
@@ -727,7 +744,7 @@ class typebin(objarchetype):
 # types.
 def baseregistry():
   Types = rpltypes()
-  for i in [typebinproc, typesym, typefloat, typestr, typerem,
+  for i in [typecontext, typebinproc, typesym, typefloat, typestr, typerem,
             typebin, typedir, typetag, typelst, typecode, typeint, typeio,
             typequote]:
     Types.register(i)

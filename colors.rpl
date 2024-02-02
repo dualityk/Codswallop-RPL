@@ -433,7 +433,7 @@ STATICN 'ERRTRACE STO
 (A nicer single stepper using our type coloring routines.)
 ':: QUOTE
   ':: 
-    ANSI.codes.clear "(Depth " + depth ANSI.highlight +
+    ANSI.codes.clear "(Depth " + calldepth ANSI.highlight +
     ") Single step evaluated: " + 'word STO #34 'length STO write
     obj izer newline 
     ANSI.ize.stack

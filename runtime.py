@@ -7,7 +7,7 @@
 # to execute RPL code and manipulate the named store.
 
 from trivia import *
-from rtypes import typedir, typelst, typerem, typeint, typestr, typetag
+from rtypes import typedir, typelst, typerem, typeint, typestr, typetag, typecontext
 
 # Interpreter flags and stuff, easier to have in its own namespace.
 class rplruntime:
@@ -52,9 +52,14 @@ class rplruntime:
     # Make the self-referencing last entry for the named store.
     self.lastobj=typedir(self.nulltag, None)
     
-    # Now that we have lastobj, we can make our firstobj.
-    self.firstglobalobj = self.firstdir()
-    self.firstobj = self.firstglobalobj
+    # This is the first Context object.
+    self.Context = typecontext(typelst([]), self.firstdir())
+    
+    # Our call depth is tracked here; if Depth reaches zero, dysentery.
+    self.Depth = CALLDEPTH
+    
+    # Original context must have an invalid IP to avoid tripping up retcall.
+    self.Context.ip = 1
 
     # And for our opening act, populate our types within the named store.
     types.updatestore(self)
@@ -81,33 +86,26 @@ class rplruntime:
       # Let's make a core dump!
       self.Stack.push(typestr(self.Caller))
       self.Stack.push(typestr(reason))
-      core = typelst()
       
-      # Don't trace back deeper than our REPL.
-      for i in self.Calls[self.Tracedepth:]:
-        core.push(typelst([i[CALL_CODE], typeint(i[CALL_IP]-1)]))
+      # Unwind as we build a trace, but don't trace back deeper than our REPL.
+      traces = CALLDEPTH-self.Depth-self.Tracedepth
+      core = typelst([])
+      while traces and self.Context.next is not self.Context:
+        core.data = [typelst([self.Context.code, typeint(self.Context.ip-1)])]+core.data
+        self.dropcall()
+        traces -= 1
       self.Stack.push(core)
         
-      # ... and don't kill past it either.
-      if len(self.Calls)>self.Tracedepth:
-        # Reset our first object pointer and unwind back as far as we should.
-        if len(self.Calls):
-          self.firstobj = self.Calls[len(self.Calls)-1][CALL_CONTEXT]
-        else:
-          self.firstobj = self.firstglobalobj
-      self.Calls = self.Calls[0:self.Tracedepth]
-      
       # Try to evaluate ERRTRACE to print our traceback and error message.
       tracer = self.rcl(['ERRTRACE'])
       if tracer is not None: tracer.eval(self)
 
-  # Code execution routine.  Basically, evaluating a program to the call stack
-  # will cause execution to begin, and each object therein is evaluated (using
-  # 'program rules'); if it's the last element, the program is dropped from
-  # the call stack afterward.  If the last element is a new program, it will
-  # push itself to the call stack.  The instruction pointer is maintained on
-  # the call stack so reentrant routines are fine.  Each stack line is in the
-  # form of [ip, object, first-named-object].
+  # Code execution routine.  Basically, evaluating a program to the call
+  # stack will cause execution to begin, and each object therein is
+  # evaluated.  The instruction pointer is maintained on the call stack so
+  # reentrant routines are fine.  Each stack line is in the form of a
+  # Context RPL object (which contains the code object, an instruction pointer,
+  # and the origin of the named store.)
 
   # If single stepping is activated, it will try to call STEP with the frame:
   # Line 2: Stack depth as integer
@@ -119,12 +117,10 @@ class rplruntime:
     # to evaluate.  It'll return False as soon as the call stack is empty.
     while self.retcall():
       # Fetch next object from current clutches.
-      line = self.Calls[len(self.Calls)-1]
-      nextobj = line[CALL_CODE].data[line[CALL_IP]]
-      nexteval = nextobj.eval
+      nexteval = self.Context.code.data[self.Context.ip].eval
 
       # Increment IP for this context.
-      line[CALL_IP] += 1
+      self.Context.ip += 1
       
       # If we're in debug mode, call STEP after each thing we actually
       # evaluate; otherwise, just evaluate.
@@ -140,8 +136,8 @@ class rplruntime:
           # And we clear SST so the single stepper can run unimpeded;
           # it'll set SST again on its own if it wants to keep stepping.
           self.SST = False
-          self.Stack.push(typeint(len(self.Calls)))
-          self.Stack.push(nextobj)
+          self.Stack.push(typeint(CALLDEPTH-self.Depth))
+          self.Stack.push(self.Context.code.data[self.Context.ip-1])
           ourstepper.eval(self)
         else:
           # Silently return to quick evaluation if there's no STEP.
@@ -180,58 +176,49 @@ class rplruntime:
           self.Caller = 'a higher power'
           self.ded('Break')
 
-
   # Queue a new context.  This will add a line to the call stack unless there
   # is a tail call to optimize.
   def newcall(self, obj):
-      # Check to see if we're tail calling and replace instead of push if so.
-      # This will retain the local variable context.
-      spot = len(self.Calls)-1
-      if len(self.Calls) and self.Calls[spot][CALL_IP] == len(self.Calls[spot][CALL_CODE].data):
-        # When replacing a call, just replace the program and reset the IP.
-        self.Calls[spot][CALL_IP] = 0
-        self.Calls[spot][CALL_CODE] = obj
+    if self.Context.ip == len(self.Context.code.data):
+      self.Context.ip = 0
+      self.Context.code = obj
+    else:
+      if self.Depth:
+        self.Context = typecontext(obj, self.Context.names, self.Context)
+        self.Depth -= 1
       else:
-        if spot < CALLDEPTH:
-          self.Calls.append([0, obj, self.firstobj])
-        else:
-          self.ded('You asked for '+str(CALLDEPTH)+' recursions and not a penny more')
+        self.ded('You asked for '+str(CALLDEPTH)+' recursions and not a penny more')       
 
   # New call with locals.
   def newlocall(self, obj, names):
-      # Check to see if we're tail calling and replace instead of push if so.
-      # This will retain the local variable context.
-      spot = len(self.Calls)-1
-      self.firstobj = self.firstdir(names)
-      if len(self.Calls) and self.Calls[spot][CALL_IP] == len(self.Calls[spot][CALL_CODE].data):
-        # When replacing a call, just reset the IP and update our directory.
-        self.Calls[spot] = [0, obj, self.firstobj]
+    if self.Context.ip == len(self.Context.code.data):
+      self.Context.ip = 0
+      self.Context.code = obj
+      self.Context.names = names
+    else:
+      if self.Depth:
+        self.Context = typecontext(obj, names, self.Context)
+        self.Depth -= 1
       else:
-        if spot < CALLDEPTH:
-          # When adding a call, make a new first directory object
-          # and update our firstobj pointer.
-          self.Calls.append([0, obj, self.firstobj])
-        else:
-          self.ded('You asked for '+str(CALLDEPTH)+' recursions and not a penny more')
+        self.ded('You asked for '+str(CALLDEPTH)+' recursions and not a penny more')       
+  
+  # Drop out of a call unconditionally.
+  def dropcall(self):
+    self.Depth += 1
+    self.Context = self.Context.next
 
   # Return until there is a context with stuff left in it (or nothing left).
   def retcall(self):
-    if len(self.Calls):
-      # If we're at the end of the list, drop it.  
-      line = self.Calls[len(self.Calls)-1]
-      if line[CALL_IP] == len(line[CALL_CODE].data):
-        self.Calls.pop()
-        # Update our first object pointer and see if we're done.
-        if len(self.Calls):
-          self.firstobj = self.Calls[len(self.Calls)-1][CALL_CONTEXT]
-        else:
-          # Call stack is empty, definitely done.
-          self.firstobj = self.firstglobalobj
-          return False
-      return True
-    else:
-      # Call stack is empty, we're definitely done.
+    # If we've advanced past the end of the call, drop the current context.  
+    if self.Context.ip == len(self.Context.code.data):
+      self.Depth += 1
+      self.Context = self.Context.next
+
+    # The last call is self-referential, and that means we're done.
+    if self.Context.next is self.Context:
       return False
+    # Otherwise we should be good.
+    return True
 
 
   # #####################################################
@@ -248,7 +235,7 @@ class rplruntime:
   # Try to find an object.
   def rcl(self, namelist):
     # Start from the top.
-    current = self.firstobj
+    current = self.Context.names
     for i in namelist:
       # Make sure we're about to parade through an actual directory first.
       if current.typenum == self.dirtype:
@@ -266,7 +253,7 @@ class rplruntime:
   # Modified rcl, deref, which returns the tag and not the obj.
   def deref(self, namelist):
     # Start from the top.
-    current = self.firstobj
+    current = self.Context.names
     for i in range(len(namelist)):
       # Make sure we're about to parade through an actual directory first.
       if current.typenum == self.dirtype:
@@ -288,7 +275,7 @@ class rplruntime:
     # Counter
     counter = len(namelist)-1
     # Start from the top.
-    current = self.firstobj
+    current = self.Context.names
     for i in namelist:
       # Make sure we're about to parade through an actual directory first.
       if current.typenum == self.dirtype:
@@ -362,7 +349,7 @@ class rplruntime:
 
   def rm(self, namelist):
     # Start from the top.
-    current = self.firstobj
+    current = self.Context.names
     for i in namelist:
       # Make sure we're about to parade through an actual directory first.
       # We also exempt empty directories here.
